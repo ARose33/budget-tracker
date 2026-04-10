@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ':*)",
+      "Bash(python \"C:/Users/rosea/Claude Projects/Budget Tracker/parse_schema.py\")",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --turbopack)",
+      "Bash(npx create-next-app@latest budget-tracker --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --turbopack)",
+      "Bash(shopt -s dotglob)",
+      "Bash(mv budget-tracker/* .)",
+      "Bash(mv budget-tracker/.* .)",
+      "Bash(rmdir budget-tracker:*)",
+      "Bash(npx shadcn@latest init -d)",
+      "Bash(npx shadcn@latest add card progress dialog collapsible badge select input popover separator tooltip sheet table dropdown-menu checkbox command -y)",
+      "Bash(npm install:*)",
+      "mcp__d6c17c77-21c2-40ae-a52f-e85eed5e5906__generate_typescript_types",
+      "Bash(node -e \" const chunks = []; process.stdin.on\\('data', c => chunks.push\\(c\\)\\); process.stdin.on\\('end', \\(\\) => { const data = JSON.parse\\(Buffer.concat\\(chunks\\).toString\\(\\)\\); const types = JSON.parse\\(data[0].text\\).types; // Unescape process.stdout.write\\(types\\); }\\); \")",
+      "Bash(node -e \" const chunks = []; process.stdin.on\\('data', c => chunks.push\\(c\\)\\); process.stdin.on\\('end', \\(\\) => { const data = JSON.parse\\(Buffer.concat\\(chunks\\).toString\\(\\)\\); const types = JSON.parse\\(data[0].text\\).types; process.stdout.write\\(types\\); }\\); \")",
+      "Bash(npm run:*)",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}
