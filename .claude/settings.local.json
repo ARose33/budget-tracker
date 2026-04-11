@@ -16,7 +16,20 @@
       "Bash(node -e \" const chunks = []; process.stdin.on\\('data', c => chunks.push\\(c\\)\\); process.stdin.on\\('end', \\(\\) => { const data = JSON.parse\\(Buffer.concat\\(chunks\\).toString\\(\\)\\); const types = JSON.parse\\(data[0].text\\).types; // Unescape process.stdout.write\\(types\\); }\\); \")",
       "Bash(node -e \" const chunks = []; process.stdin.on\\('data', c => chunks.push\\(c\\)\\); process.stdin.on\\('end', \\(\\) => { const data = JSON.parse\\(Buffer.concat\\(chunks\\).toString\\(\\)\\); const types = JSON.parse\\(data[0].text\\).types; process.stdout.write\\(types\\); }\\); \")",
       "Bash(npm run:*)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "mcp__b17b42a2-fc4f-4bae-a936-b231c3dde876__deploy_to_vercel",
+      "Bash(npx vercel:*)",
+      "mcp__b17b42a2-fc4f-4bae-a936-b231c3dde876__list_teams",
+      "mcp__b17b42a2-fc4f-4bae-a936-b231c3dde876__get_deployment_build_logs",
+      "Bash(npx tsc:*)",
+      "WebSearch",
+      "Bash(gh --version)",
+      "Bash(winget install:*)",
+      "Bash(gh auth:*)",
+      "Bash(where.exe gh:*)",
+      "Read(//c/Program Files/GitHub CLI/**)",
+      "Read(//c/Program Files \\(x86\\)/GitHub CLI/**)",
+      "Bash(export PATH=\"$PATH:/c/Program Files/GitHub CLI\")"
     ]
   }
 }
