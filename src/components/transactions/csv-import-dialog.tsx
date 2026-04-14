@@ -42,6 +42,7 @@ interface ParsedRow {
   description: string;
   amount: number;
   isDuplicate?: boolean;
+  overridden?: boolean;
 }
 
 export function CsvImportDialog({
@@ -157,23 +158,35 @@ export function CsvImportDialog({
     setStep("preview");
   };
 
+  const toggleOverride = (index: number) => {
+    setParsedRows((prev) =>
+      prev.map((r, i) =>
+        i === index ? { ...r, overridden: !r.overridden } : r
+      )
+    );
+  };
+
+  const rowsToImport = parsedRows.filter(
+    (r) => !r.isDuplicate || r.overridden
+  );
+
   const handleImport = async () => {
     setStep("importing");
-    const nonDupes = parsedRows.filter((r) => !r.isDuplicate);
 
-    if (nonDupes.length === 0) {
+    if (rowsToImport.length === 0) {
       toast.warning("No new transactions to import (all duplicates)");
       reset();
       onOpenChange(false);
       return;
     }
 
-    const insertRows = nonDupes.map((r) => ({
+    const insertRows = rowsToImport.map((r) => ({
       date: r.date,
       description: r.description,
       amount: r.amount,
       upload_source: "csv_import",
       status: "Unconfirmed",
+      not_duplicate: r.overridden ? true : false,
     }));
 
     const { error } = await supabase.from("transactions").insert(insertRows);
@@ -184,7 +197,7 @@ export function CsvImportDialog({
       return;
     }
 
-    toast.success(`Imported ${nonDupes.length} transactions`);
+    toast.success(`Imported ${rowsToImport.length} transactions`);
     reset();
     onOpenChange(false);
     onComplete();
@@ -263,20 +276,25 @@ export function CsvImportDialog({
 
         {step === "preview" && (
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <Badge variant="secondary">
                 {parsedRows.length} transactions
               </Badge>
               {duplicateCount > 0 && (
                 <Badge variant="outline" className="border-yellow-300 text-yellow-700">
                   <AlertTriangle className="h-3 w-3 mr-1" />
-                  {duplicateCount} duplicates (will be skipped)
+                  {duplicateCount} potential duplicates
                 </Badge>
               )}
               <Badge variant="default">
-                {parsedRows.length - duplicateCount} to import
+                {rowsToImport.length} to import
               </Badge>
             </div>
+            {duplicateCount > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Click &quot;Dupe&quot; on any row to override — it will be imported and marked as verified (not a duplicate).
+              </p>
+            )}
             <div className="max-h-[300px] overflow-y-auto border rounded-md">
               <table className="w-full text-sm">
                 <thead className="bg-muted sticky top-0">
@@ -291,7 +309,9 @@ export function CsvImportDialog({
                   {parsedRows.slice(0, 100).map((row, i) => (
                     <tr
                       key={i}
-                      className={row.isDuplicate ? "opacity-40" : ""}
+                      className={
+                        row.isDuplicate && !row.overridden ? "opacity-40" : ""
+                      }
                     >
                       <td className="p-2">{row.date}</td>
                       <td className="p-2 truncate max-w-[200px]">
@@ -302,9 +322,26 @@ export function CsvImportDialog({
                       </td>
                       <td className="p-2 text-center">
                         {row.isDuplicate ? (
-                          <Badge variant="outline" className="text-yellow-600">
-                            Dupe
-                          </Badge>
+                          <button
+                            type="button"
+                            onClick={() => toggleOverride(i)}
+                            className="cursor-pointer"
+                            title={
+                              row.overridden
+                                ? "Click to mark as duplicate again"
+                                : "Click to override — this is a real transaction"
+                            }
+                          >
+                            {row.overridden ? (
+                              <Badge variant="outline" className="text-blue-600 border-blue-300">
+                                Verified
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-yellow-600 hover:border-blue-300 hover:text-blue-600 transition-colors">
+                                Dupe
+                              </Badge>
+                            )}
+                          </button>
                         ) : (
                           <Badge variant="outline" className="text-emerald-600">
                             New
@@ -327,7 +364,7 @@ export function CsvImportDialog({
               </Button>
               <Button onClick={handleImport}>
                 <FileText className="h-4 w-4 mr-1" />
-                Import {parsedRows.length - duplicateCount} Transactions
+                Import {rowsToImport.length} Transactions
               </Button>
             </DialogFooter>
           </div>

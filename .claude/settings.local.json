@@ -29,7 +29,11 @@
       "Bash(where.exe gh:*)",
       "Read(//c/Program Files/GitHub CLI/**)",
       "Read(//c/Program Files \\(x86\\)/GitHub CLI/**)",
-      "Bash(export PATH=\"$PATH:/c/Program Files/GitHub CLI\")"
+      "Bash(export PATH=\"$PATH:/c/Program Files/GitHub CLI\")",
+      "Bash(gh repo:*)",
+      "mcp__b17b42a2-fc4f-4bae-a936-b231c3dde876__get_project",
+      "Bash(node -e ':*)",
+      "mcp__d6c17c77-21c2-40ae-a52f-e85eed5e5906__execute_sql"
     ]
   }
 }

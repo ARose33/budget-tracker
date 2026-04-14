@@ -17,6 +17,7 @@ export type Database = {
       accounts: {
         Row: {
           current_balance: number | null
+          hidden: boolean
           id: string
           initial_date: string | null
           initial_value: number | null
@@ -29,6 +30,7 @@ export type Database = {
         }
         Insert: {
           current_balance?: number | null
+          hidden?: boolean
           id?: string
           initial_date?: string | null
           initial_value?: number | null
@@ -41,6 +43,7 @@ export type Database = {
         }
         Update: {
           current_balance?: number | null
+          hidden?: boolean
           id?: string
           initial_date?: string | null
           initial_value?: number | null
@@ -108,6 +111,294 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "budget_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hub_comps: {
+        Row: {
+          address: string | null
+          airbnb_nightly_rate: number | null
+          baths: number | null
+          beds: number | null
+          comp_type: Database["public"]["Enums"]["hub_comp_type"]
+          created_at: string | null
+          date_sold: string | null
+          id: string
+          monthly_rent: number | null
+          notes: string | null
+          price: number | null
+          property_id: string
+          source_url: string | null
+          sqft: number | null
+        }
+        Insert: {
+          address?: string | null
+          airbnb_nightly_rate?: number | null
+          baths?: number | null
+          beds?: number | null
+          comp_type: Database["public"]["Enums"]["hub_comp_type"]
+          created_at?: string | null
+          date_sold?: string | null
+          id?: string
+          monthly_rent?: number | null
+          notes?: string | null
+          price?: number | null
+          property_id: string
+          source_url?: string | null
+          sqft?: number | null
+        }
+        Update: {
+          address?: string | null
+          airbnb_nightly_rate?: number | null
+          baths?: number | null
+          beds?: number | null
+          comp_type?: Database["public"]["Enums"]["hub_comp_type"]
+          created_at?: string | null
+          date_sold?: string | null
+          id?: string
+          monthly_rent?: number | null
+          notes?: string | null
+          price?: number | null
+          property_id?: string
+          source_url?: string | null
+          sqft?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_comps_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "hub_properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hub_investment_analysis: {
+        Row: {
+          airbnb_avg_nightly_rate: number | null
+          airbnb_monthly_revenue_estimate: number | null
+          airbnb_occupancy_rate: number | null
+          annual_property_tax: number | null
+          created_at: string | null
+          down_payment_pct: number | null
+          id: string
+          interest_rate: number | null
+          loan_term_years: number | null
+          monthly_hoa: number | null
+          monthly_insurance: number | null
+          monthly_maintenance_estimate: number | null
+          monthly_rent_estimate: number | null
+          property_id: string
+          purchase_price: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          airbnb_avg_nightly_rate?: number | null
+          airbnb_monthly_revenue_estimate?: number | null
+          airbnb_occupancy_rate?: number | null
+          annual_property_tax?: number | null
+          created_at?: string | null
+          down_payment_pct?: number | null
+          id?: string
+          interest_rate?: number | null
+          loan_term_years?: number | null
+          monthly_hoa?: number | null
+          monthly_insurance?: number | null
+          monthly_maintenance_estimate?: number | null
+          monthly_rent_estimate?: number | null
+          property_id: string
+          purchase_price?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          airbnb_avg_nightly_rate?: number | null
+          airbnb_monthly_revenue_estimate?: number | null
+          airbnb_occupancy_rate?: number | null
+          annual_property_tax?: number | null
+          created_at?: string | null
+          down_payment_pct?: number | null
+          id?: string
+          interest_rate?: number | null
+          loan_term_years?: number | null
+          monthly_hoa?: number | null
+          monthly_insurance?: number | null
+          monthly_maintenance_estimate?: number | null
+          monthly_rent_estimate?: number | null
+          property_id?: string
+          purchase_price?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_investment_analysis_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: true
+            referencedRelation: "hub_properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hub_notes: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          property_id: string
+          user_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          property_id: string
+          user_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          property_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_notes_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "hub_properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hub_profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          display_name: string
+          id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          display_name: string
+          id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          display_name?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      hub_properties: {
+        Row: {
+          address: string
+          baths: number | null
+          beds: number | null
+          city: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          image_urls: string[] | null
+          investment_type: Database["public"]["Enums"]["hub_investment_type"]
+          lat: number | null
+          lng: number | null
+          lot_size: string | null
+          price: number | null
+          property_type: Database["public"]["Enums"]["hub_property_type"] | null
+          sqft: number | null
+          state: string
+          status: Database["public"]["Enums"]["hub_property_status"] | null
+          updated_at: string | null
+          year_built: number | null
+          zillow_url: string | null
+          zip: string | null
+        }
+        Insert: {
+          address: string
+          baths?: number | null
+          beds?: number | null
+          city: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_urls?: string[] | null
+          investment_type: Database["public"]["Enums"]["hub_investment_type"]
+          lat?: number | null
+          lng?: number | null
+          lot_size?: string | null
+          price?: number | null
+          property_type?:
+            | Database["public"]["Enums"]["hub_property_type"]
+            | null
+          sqft?: number | null
+          state?: string
+          status?: Database["public"]["Enums"]["hub_property_status"] | null
+          updated_at?: string | null
+          year_built?: number | null
+          zillow_url?: string | null
+          zip?: string | null
+        }
+        Update: {
+          address?: string
+          baths?: number | null
+          beds?: number | null
+          city?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_urls?: string[] | null
+          investment_type?: Database["public"]["Enums"]["hub_investment_type"]
+          lat?: number | null
+          lng?: number | null
+          lot_size?: string | null
+          price?: number | null
+          property_type?:
+            | Database["public"]["Enums"]["hub_property_type"]
+            | null
+          sqft?: number | null
+          state?: string
+          status?: Database["public"]["Enums"]["hub_property_status"] | null
+          updated_at?: string | null
+          year_built?: number | null
+          zillow_url?: string | null
+          zip?: string | null
+        }
+        Relationships: []
+      }
+      hub_votes: {
+        Row: {
+          created_at: string | null
+          id: string
+          property_id: string
+          user_id: string
+          vote: Database["public"]["Enums"]["hub_vote_type"]
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          property_id: string
+          user_id: string
+          vote: Database["public"]["Enums"]["hub_vote_type"]
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          property_id?: string
+          user_id?: string
+          vote?: Database["public"]["Enums"]["hub_vote_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_votes_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "hub_properties"
             referencedColumns: ["id"]
           },
         ]
@@ -1280,6 +1571,7 @@ export type Database = {
           description: string | null
           id: string
           is_split: boolean | null
+          not_duplicate: boolean
           parent_id: string | null
           plaid_transaction_id: string | null
           source: string | null
@@ -1298,6 +1590,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_split?: boolean | null
+          not_duplicate?: boolean
           parent_id?: string | null
           plaid_transaction_id?: string | null
           source?: string | null
@@ -1316,6 +1609,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_split?: boolean | null
+          not_duplicate?: boolean
           parent_id?: string | null
           plaid_transaction_id?: string | null
           source?: string | null
@@ -1752,11 +2046,15 @@ export type Database = {
       find_duplicate_transactions: {
         Args: never
         Returns: {
+          account_id: string
           amount: number
+          category_id: string
+          date: string
           description: string
-          duplicate_count: number
-          transaction_date: string
-          transaction_ids: string[]
+          duplicate_group: number
+          id: string
+          not_duplicate: boolean
+          status: string
         }[]
       }
       get_budget_with_rollover: {
@@ -1801,7 +2099,23 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      hub_comp_type: "sale" | "rental" | "airbnb"
+      hub_investment_type: "denver_house" | "mountain_airbnb"
+      hub_property_status:
+        | "new"
+        | "shortlisted"
+        | "rejected"
+        | "offer_made"
+        | "under_contract"
+        | "closed"
+      hub_property_type:
+        | "house"
+        | "condo"
+        | "cabin"
+        | "townhome"
+        | "land"
+        | "other"
+      hub_vote_type: "like" | "veto"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1928,6 +2242,26 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      hub_comp_type: ["sale", "rental", "airbnb"],
+      hub_investment_type: ["denver_house", "mountain_airbnb"],
+      hub_property_status: [
+        "new",
+        "shortlisted",
+        "rejected",
+        "offer_made",
+        "under_contract",
+        "closed",
+      ],
+      hub_property_type: [
+        "house",
+        "condo",
+        "cabin",
+        "townhome",
+        "land",
+        "other",
+      ],
+      hub_vote_type: ["like", "veto"],
+    },
   },
 } as const

@@ -89,7 +89,7 @@ export async function ensureBudgetRows(year: number, month: number) {
   // Copy budget rows from the latest month
   const { data: templates } = await supabase
     .from("budgets")
-    .select("category_id, budget_limit")
+    .select("category_id, budget_limit, user_id")
     .eq("year_number", lastYear)
     .eq("month_number", lastMonth);
 
@@ -100,6 +100,7 @@ export async function ensureBudgetRows(year: number, month: number) {
     year_number: year,
     month_number: month,
     budget_limit: t.budget_limit,
+    user_id: t.user_id,
   }));
 
   await supabase.from("budgets").insert(newRows);

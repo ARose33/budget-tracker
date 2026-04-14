@@ -14,6 +14,7 @@ export interface Transaction {
   upload_source: string | null;
   created_at: string | null;
   plaid_transaction_id: string | null;
+  not_duplicate: boolean;
   budget_categories?: {
     group_name: string;
     line_item_name: string;
@@ -46,7 +47,7 @@ export async function getTransactions(
       `
       id, date, description, amount, category_id, account_id,
       status, is_split, parent_id, source, upload_source, created_at,
-      plaid_transaction_id,
+      plaid_transaction_id, not_duplicate,
       budget_categories(group_name, line_item_name, category_type),
       accounts(name, institution)
     `,
@@ -130,6 +131,61 @@ export async function findDuplicates() {
   const { data, error } = await supabase.rpc("find_duplicate_transactions");
   if (error) throw error;
   return data ?? [];
+}
+
+export async function bulkUpdateAccount(
+  transactionIds: string[],
+  accountId: string
+) {
+  const { error } = await supabase
+    .from("transactions")
+    .update({ account_id: accountId })
+    .in("id", transactionIds);
+  if (error) throw error;
+}
+
+export async function bulkUpdateStatus(
+  transactionIds: string[],
+  status: string
+) {
+  const { error } = await supabase
+    .from("transactions")
+    .update({ status })
+    .in("id", transactionIds);
+  if (error) throw error;
+}
+
+export async function bulkUpdateDate(
+  transactionIds: string[],
+  date: string
+) {
+  const { error } = await supabase
+    .from("transactions")
+    .update({ date })
+    .in("id", transactionIds);
+  if (error) throw error;
+}
+
+export async function bulkUpdateDescription(
+  transactionIds: string[],
+  description: string
+) {
+  const { error } = await supabase
+    .from("transactions")
+    .update({ description })
+    .in("id", transactionIds);
+  if (error) throw error;
+}
+
+export async function markNotDuplicate(
+  transactionIds: string[],
+  notDuplicate: boolean
+) {
+  const { error } = await supabase
+    .from("transactions")
+    .update({ not_duplicate: notDuplicate })
+    .in("id", transactionIds);
+  if (error) throw error;
 }
 
 export async function splitTransaction(

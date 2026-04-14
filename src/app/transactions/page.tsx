@@ -7,8 +7,13 @@ import {
   getTransactions,
   updateTransactionCategory,
   bulkUpdateCategory,
+  bulkUpdateAccount,
+  bulkUpdateStatus,
+  bulkUpdateDescription,
+  bulkUpdateDate,
   bulkConfirm,
   deleteTransactions,
+  markNotDuplicate,
   type TransactionFilters,
   type Transaction,
 } from "@/lib/queries/transactions";
@@ -120,6 +125,50 @@ export default function TransactionsPage() {
     },
   });
 
+  const notDuplicateMutation = useMutation({
+    mutationFn: () => markNotDuplicate(Array.from(selected), true),
+    onSuccess: () => {
+      toast.success(`Marked ${selected.size} transactions as verified (not duplicate)`);
+      invalidate();
+    },
+  });
+
+  const bulkAccountMutation = useMutation({
+    mutationFn: (accountId: string) =>
+      bulkUpdateAccount(Array.from(selected), accountId),
+    onSuccess: () => {
+      toast.success(`Updated account on ${selected.size} transactions`);
+      invalidate();
+    },
+  });
+
+  const bulkStatusMutation = useMutation({
+    mutationFn: (status: string) =>
+      bulkUpdateStatus(Array.from(selected), status),
+    onSuccess: () => {
+      toast.success(`Updated status on ${selected.size} transactions`);
+      invalidate();
+    },
+  });
+
+  const bulkDescriptionMutation = useMutation({
+    mutationFn: (description: string) =>
+      bulkUpdateDescription(Array.from(selected), description),
+    onSuccess: () => {
+      toast.success(`Updated description on ${selected.size} transactions`);
+      invalidate();
+    },
+  });
+
+  const bulkDateMutation = useMutation({
+    mutationFn: (date: string) =>
+      bulkUpdateDate(Array.from(selected), date),
+    onSuccess: () => {
+      toast.success(`Updated date on ${selected.size} transactions`);
+      invalidate();
+    },
+  });
+
   return (
     <div className="max-w-6xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
@@ -142,8 +191,12 @@ export default function TransactionsPage() {
       <BulkActionsBar
         selectedCount={selected.size}
         onSetCategory={(cid) => bulkCategoryMutation.mutate(cid)}
-        onConfirmAll={() => bulkConfirmMutation.mutate()}
+        onSetAccount={(aid) => bulkAccountMutation.mutate(aid)}
+        onSetStatus={(s) => bulkStatusMutation.mutate(s)}
+        onSetDescription={(d) => bulkDescriptionMutation.mutate(d)}
+        onSetDate={(d) => bulkDateMutation.mutate(d)}
         onDelete={() => deleteMutation.mutate()}
+        onMarkNotDuplicate={() => notDuplicateMutation.mutate()}
       />
 
       {isLoading ? (
@@ -265,6 +318,11 @@ function TransactionRow({
         {t.is_split && (
           <Badge variant="outline" className="ml-2 text-xs">
             Split
+          </Badge>
+        )}
+        {t.not_duplicate && (
+          <Badge variant="outline" className="ml-2 text-xs border-blue-200 text-blue-600">
+            Verified
           </Badge>
         )}
       </td>
