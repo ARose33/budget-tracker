@@ -44,13 +44,11 @@ export function AddAccountDialog({
   const [name, setName] = useState("");
   const [institution, setInstitution] = useState("");
   const [type, setType] = useState("Checking");
-  const [balance, setBalance] = useState("");
 
   const reset = () => {
     setName("");
     setInstitution("");
     setType("Checking");
-    setBalance("");
   };
 
   const mutation = useMutation({
@@ -72,12 +70,11 @@ export function AddAccountDialog({
       toast.error("Name, institution, and type are required");
       return;
     }
-    const parsedBalance = parseFloat(balance) || 0;
     mutation.mutate({
       name: name.trim(),
       institution: institution.trim(),
       type,
-      current_balance: parsedBalance,
+      current_balance: 0,
     });
   };
 
@@ -125,19 +122,6 @@ export function AddAccountDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Current Balance</label>
-            <Input
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={balance}
-              onChange={(e) => setBalance(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Use a negative number for credit cards or debt.
-            </p>
           </div>
           <DialogFooter>
             <Button

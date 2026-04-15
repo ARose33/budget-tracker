@@ -22,15 +22,6 @@ import { format } from "date-fns";
 import { AddAccountDialog } from "@/components/accounts/add-account-dialog";
 import { Plus } from "lucide-react";
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
 const typeIcons: Record<string, typeof Landmark> = {
   Checking: Wallet,
   Savings: PiggyBank,
@@ -73,15 +64,6 @@ export default function AccountsPage() {
     {} as Record<string, typeof visibleAccounts>
   );
 
-  const activeAccounts = accounts.filter((a) => !a.hidden);
-  const totalAssets = activeAccounts
-    .filter((a) => a.type !== "Credit Card" && a.type !== "Debt")
-    .reduce((s, a) => s + (a.current_balance ?? 0), 0);
-
-  const totalLiabilities = activeAccounts
-    .filter((a) => a.type === "Credit Card" || a.type === "Debt")
-    .reduce((s, a) => s + Math.abs(a.current_balance ?? 0), 0);
-
   const hiddenCount = accounts.filter((a) => a.hidden).length;
 
   if (isLoading) {
@@ -120,33 +102,6 @@ export default function AccountsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Total Assets</p>
-            <p className="text-2xl font-bold text-emerald-600">
-              {formatCurrency(totalAssets)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Total Liabilities</p>
-            <p className="text-2xl font-bold text-red-500">
-              {formatCurrency(totalLiabilities)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Net Worth</p>
-            <p className="text-2xl font-bold">
-              {formatCurrency(totalAssets - totalLiabilities)}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
       {Object.entries(grouped).map(([type, accts]) => {
         const Icon = typeIcons[type] ?? Landmark;
         return (
@@ -175,9 +130,6 @@ export default function AccountsPage() {
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-1">
-                        <p className="text-lg font-semibold">
-                          {formatCurrency(a.current_balance ?? 0)}
-                        </p>
                         <Button
                           variant="ghost"
                           size="sm"
