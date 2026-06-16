@@ -15,11 +15,13 @@ import {
   Wallet,
   Eye,
   EyeOff,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { AddAccountDialog } from "@/components/accounts/add-account-dialog";
+import { TellerConnectButton } from "@/components/accounts/teller-connect-button";
 import { Plus } from "lucide-react";
 
 const typeIcons: Record<string, typeof Landmark> = {
@@ -46,6 +48,32 @@ export default function AccountsPage() {
     onSuccess: (_, { hidden }) => {
       toast.success(hidden ? "Account hidden" : "Account restored");
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
+    },
+  });
+
+  const tellerSyncMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/teller/sync", { method: "POST" });
+      const json = (await response.json()) as {
+        accounts?: number;
+        transactions?: number;
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(json.error || "Failed to sync Teller accounts");
+      }
+      return json;
+    },
+    onSuccess: (summary) => {
+      toast.success(
+        `Teller synced ${summary.accounts ?? 0} accounts and ${summary.transactions ?? 0} transactions`
+      );
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["budget"] });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
     },
   });
 
@@ -79,6 +107,21 @@ export default function AccountsPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Accounts</h2>
         <div className="flex items-center gap-2">
+          <TellerConnectButton />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => tellerSyncMutation.mutate()}
+            disabled={tellerSyncMutation.isPending}
+          >
+            <RefreshCw
+              className={cn(
+                "h-4 w-4 mr-1",
+                tellerSyncMutation.isPending && "animate-spin"
+              )}
+            />
+            Sync Teller
+          </Button>
           {hiddenCount > 0 && (
             <Button
               variant="outline"
@@ -128,6 +171,14 @@ export default function AccountsPage() {
                             ? `Updated ${format(new Date(a.last_synced_at), "MMM d, yyyy 'at' h:mm a")}`
                             : "Never synced"}
                         </p>
+                        {a.plaid_account_id?.startsWith("teller:") && (
+                          <Badge
+                            variant="outline"
+                            className="mt-2 text-xs border-emerald-200 text-emerald-700"
+                          >
+                            Teller
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         <Button

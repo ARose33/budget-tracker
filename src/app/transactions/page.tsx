@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -11,7 +11,6 @@ import {
   bulkUpdateStatus,
   bulkUpdateDescription,
   bulkUpdateDate,
-  bulkConfirm,
   deleteTransactions,
   markNotDuplicate,
   type TransactionFilters,
@@ -105,14 +104,6 @@ export default function TransactionsPage() {
       bulkUpdateCategory(Array.from(selected), categoryId),
     onSuccess: () => {
       toast.success(`Updated ${selected.size} transactions`);
-      invalidate();
-    },
-  });
-
-  const bulkConfirmMutation = useMutation({
-    mutationFn: () => bulkConfirm(Array.from(selected)),
-    onSuccess: () => {
-      toast.success(`Confirmed ${selected.size} transactions`);
       invalidate();
     },
   });

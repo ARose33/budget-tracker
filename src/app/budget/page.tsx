@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useCallback } from "react";
+import { Suspense, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { MonthPicker } from "@/components/layout/month-picker";
@@ -61,16 +61,13 @@ function BudgetContent() {
     },
   });
 
-  const handleEdit = useCallback(
-    (categoryId: string) => {
-      const item = items.find((i) => i.category_id === categoryId);
-      if (item) {
-        setEditItem(item);
-        setEditOpen(true);
-      }
-    },
-    [items]
-  );
+  const handleEdit = (categoryId: string) => {
+    const item = items.find((i) => i.category_id === categoryId);
+    if (item) {
+      setEditItem(item);
+      setEditOpen(true);
+    }
+  };
 
   if (isLoading) {
     return (

@@ -16,7 +16,9 @@ export type Database = {
     Tables: {
       accounts: {
         Row: {
+          connection_provider: string
           current_balance: number | null
+          external_account_id: string | null
           hidden: boolean
           id: string
           initial_date: string | null
@@ -29,7 +31,9 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          connection_provider?: string
           current_balance?: number | null
+          external_account_id?: string | null
           hidden?: boolean
           id?: string
           initial_date?: string | null
@@ -42,7 +46,9 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          connection_provider?: string
           current_balance?: number | null
+          external_account_id?: string | null
           hidden?: boolean
           id?: string
           initial_date?: string | null
@@ -52,6 +58,45 @@ export type Database = {
           name?: string
           plaid_account_id?: string | null
           type?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      bank_connections: {
+        Row: {
+          access_token: string
+          created_at: string
+          id: string
+          institution_name: string | null
+          last_synced_at: string | null
+          provider: string
+          provider_enrollment_id: string
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          id?: string
+          institution_name?: string | null
+          last_synced_at?: string | null
+          provider: string
+          provider_enrollment_id: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          id?: string
+          institution_name?: string | null
+          last_synced_at?: string | null
+          provider?: string
+          provider_enrollment_id?: string
+          status?: string
+          updated_at?: string
           user_id?: string | null
         }
         Relationships: []
@@ -1566,9 +1611,12 @@ export type Database = {
           amount: number
           category: string | null
           category_id: string | null
+          connection_provider: string
           created_at: string | null
           date: string
           description: string | null
+          external_status: string | null
+          external_transaction_id: string | null
           id: string
           is_split: boolean | null
           not_duplicate: boolean
@@ -1585,9 +1633,12 @@ export type Database = {
           amount: number
           category?: string | null
           category_id?: string | null
+          connection_provider?: string
           created_at?: string | null
           date: string
           description?: string | null
+          external_status?: string | null
+          external_transaction_id?: string | null
           id?: string
           is_split?: boolean | null
           not_duplicate?: boolean
@@ -1604,9 +1655,12 @@ export type Database = {
           amount?: number
           category?: string | null
           category_id?: string | null
+          connection_provider?: string
           created_at?: string | null
           date?: string
           description?: string | null
+          external_status?: string | null
+          external_transaction_id?: string | null
           id?: string
           is_split?: boolean | null
           not_duplicate?: boolean
