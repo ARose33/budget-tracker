@@ -25,6 +25,7 @@ interface CategorySelectProps {
   placeholder?: string;
   className?: string;
   includeUncategorized?: boolean;
+  displayMode?: "full" | "lineItem";
 }
 
 export function CategorySelect({
@@ -33,6 +34,7 @@ export function CategorySelect({
   placeholder = "Select category",
   className,
   includeUncategorized = true,
+  displayMode = "full",
 }: CategorySelectProps) {
   const [open, setOpen] = useState(false);
   const { data: categories = [] } = useQuery({
@@ -52,7 +54,9 @@ export function CategorySelect({
 
   const selectedCategory = categories.find((cat) => cat.id === value);
   const selectedLabel = selectedCategory
-    ? `${selectedCategory.group_name}: ${selectedCategory.line_item_name}`
+    ? displayMode === "lineItem"
+      ? selectedCategory.line_item_name
+      : `${selectedCategory.group_name}: ${selectedCategory.line_item_name}`
     : null;
 
   return (
@@ -104,7 +108,16 @@ export function CategorySelect({
                   }}
                   data-checked={value === cat.id}
                 >
-                  <span className="min-w-0 truncate">{label}</span>
+                  {displayMode === "lineItem" ? (
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate">{cat.line_item_name}</span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {cat.group_name}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="min-w-0 truncate">{label}</span>
+                  )}
                 </CommandItem>
               );
             })}

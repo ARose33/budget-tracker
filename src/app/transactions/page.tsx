@@ -212,7 +212,8 @@ export default function TransactionsPage() {
                   <th className="text-left p-3">Date</th>
                   <th className="text-left p-3">Description</th>
                   <th className="text-right p-3">Amount</th>
-                  <th className="text-left p-3 w-[200px]">Category</th>
+                  <th className="text-left p-3 w-[140px]">Group</th>
+                  <th className="text-left p-3 w-[180px]">Line Item</th>
                   <th className="text-left p-3">Account</th>
                   <th className="text-center p-3">Status</th>
                 </tr>
@@ -232,7 +233,7 @@ export default function TransactionsPage() {
                 {transactions.length === 0 && (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       className="text-center py-12 text-muted-foreground"
                     >
                       No transactions found
@@ -297,9 +298,8 @@ function TransactionRow({
   onCategoryChange: (categoryId: string | null) => void;
 }) {
   const isExpense = t.amount < 0;
-  const categoryLabel = t.budget_categories
-    ? `${t.budget_categories.group_name}: ${t.budget_categories.line_item_name}`
-    : null;
+  const groupName = t.budget_categories?.group_name ?? "Uncategorized";
+  const lineItemName = t.budget_categories?.line_item_name ?? "Uncategorized";
 
   return (
     <tr className={cn("border-t hover:bg-accent/50", isSelected && "bg-accent/30")}>
@@ -329,12 +329,19 @@ function TransactionRow({
         {isExpense ? "-" : "+"}
         {formatCurrency(t.amount)}
       </td>
+      <td
+        className="p-3 max-w-[140px] truncate text-muted-foreground text-xs"
+        title={groupName}
+      >
+        {groupName}
+      </td>
       <td className="p-3">
         <CategorySelect
           value={t.category_id}
           onValueChange={onCategoryChange}
-          placeholder={categoryLabel ?? "Uncategorized"}
+          placeholder={lineItemName}
           className="h-8 text-xs"
+          displayMode="lineItem"
         />
       </td>
       <td className="p-3 text-muted-foreground text-xs">
