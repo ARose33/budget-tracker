@@ -25,7 +25,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
     `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
 
   const getPasswordResetRedirectTo = () =>
-    `${window.location.origin}/auth/callback?next=${encodeURIComponent("/reset-password")}`;
+    `${window.location.origin}/reset-password`;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
