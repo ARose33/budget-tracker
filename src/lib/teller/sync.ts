@@ -1,5 +1,5 @@
 import { format, subDays } from "date-fns";
-import { createServerClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 import {
   getTellerBalances,
   listTellerAccounts,
@@ -57,7 +57,7 @@ function accountDisplayName(account: TellerAccount) {
 }
 
 async function getExistingUserId() {
-  const supabase = createServerClient();
+  const supabase = createServiceRoleClient();
   const { data } = await supabase
     .from("accounts")
     .select("user_id")
@@ -73,7 +73,7 @@ async function syncAccount(
   tellerAccount: TellerAccount,
   userId: string | null
 ) {
-  const supabase = createServerClient();
+  const supabase = createServiceRoleClient();
   const balances = tellerAccount.links?.balances
     ? await getTellerBalances(accessToken, tellerAccount.id)
     : null;
@@ -128,7 +128,7 @@ async function syncTransactions(
 ) {
   if (!tellerAccount.links?.transactions) return 0;
 
-  const supabase = createServerClient();
+  const supabase = createServiceRoleClient();
   const endDate = format(new Date(), "yyyy-MM-dd");
   const startDate = format(subDays(new Date(), 45), "yyyy-MM-dd");
   const transactions = await listTellerTransactions(
@@ -188,7 +188,7 @@ export async function syncTellerConnection(
   connection: StoredConnection,
   userId: string | null
 ) {
-  const supabase = createServerClient();
+  const supabase = createServiceRoleClient();
   const accounts = await listTellerAccounts(connection.access_token);
   let transactionCount = 0;
 
@@ -223,10 +223,11 @@ export async function syncTellerConnection(
 }
 
 export async function saveAndSyncTellerEnrollment(
-  enrollment: TellerEnrollmentPayload
+  enrollment: TellerEnrollmentPayload,
+  authenticatedUserId?: string
 ): Promise<SyncSummary> {
-  const supabase = createServerClient();
-  const userId = await getExistingUserId();
+  const supabase = createServiceRoleClient();
+  const userId = authenticatedUserId ?? (await getExistingUserId());
   const institutionName = enrollment.enrollment.institution?.name ?? null;
   const itemId = `${PROVIDER_PREFIX}${enrollment.enrollment.id}`;
 
@@ -245,6 +246,7 @@ export async function saveAndSyncTellerEnrollment(
         access_token: enrollment.accessToken,
         institution_name: institutionName,
         cursor: null,
+        user_id: userId,
       })
       .eq("id", existing.id);
 
@@ -254,6 +256,7 @@ export async function saveAndSyncTellerEnrollment(
       access_token: enrollment.accessToken,
       institution_name: institutionName,
       item_id: itemId,
+      user_id: userId,
     });
 
     if (error) throw error;
@@ -283,12 +286,20 @@ export async function saveAndSyncTellerEnrollment(
 }
 
 export async function syncStoredTellerConnections(): Promise<SyncSummary> {
-  const supabase = createServerClient();
   const userId = await getExistingUserId();
+  if (!userId) return { connections: 0, accounts: 0, transactions: 0 };
+  return syncStoredTellerConnectionsForUser(userId);
+}
+
+export async function syncStoredTellerConnectionsForUser(
+  userId: string
+): Promise<SyncSummary> {
+  const supabase = createServiceRoleClient();
   const { data: connections, error } = await supabase
     .from("plaid_items")
     .select("access_token, item_id, institution_name")
-    .like("item_id", `${PROVIDER_PREFIX}%`);
+    .like("item_id", `${PROVIDER_PREFIX}%`)
+    .eq("user_id", userId);
 
   if (error) throw error;
   if (!connections || connections.length === 0) {

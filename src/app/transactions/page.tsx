@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase/client";
+import { getCurrentUserId } from "@/lib/supabase/auth";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-US", {
@@ -56,9 +57,11 @@ export default function TransactionsPage() {
   const { data: uncatData } = useQuery({
     queryKey: ["uncategorized-count"],
     queryFn: async () => {
+      const userId = await getCurrentUserId();
       const { count } = await supabase
         .from("transactions")
         .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
         .is("category_id", null)
         .is("parent_id", null);
       return count ?? 0;
@@ -94,13 +97,13 @@ export default function TransactionsPage() {
   };
 
   const categoryMutation = useMutation({
-    mutationFn: ({ id, categoryId }: { id: string; categoryId: string }) =>
+    mutationFn: ({ id, categoryId }: { id: string; categoryId: string | null }) =>
       updateTransactionCategory(id, categoryId),
     onSuccess: invalidate,
   });
 
   const bulkCategoryMutation = useMutation({
-    mutationFn: (categoryId: string) =>
+    mutationFn: (categoryId: string | null) =>
       bulkUpdateCategory(Array.from(selected), categoryId),
     onSuccess: () => {
       toast.success(`Updated ${selected.size} transactions`);
@@ -291,11 +294,11 @@ function TransactionRow({
   transaction: Transaction;
   isSelected: boolean;
   onToggle: () => void;
-  onCategoryChange: (categoryId: string) => void;
+  onCategoryChange: (categoryId: string | null) => void;
 }) {
   const isExpense = t.amount < 0;
   const categoryLabel = t.budget_categories
-    ? `${t.budget_categories.group_name} > ${t.budget_categories.line_item_name}`
+    ? `${t.budget_categories.group_name}: ${t.budget_categories.line_item_name}`
     : null;
 
   return (

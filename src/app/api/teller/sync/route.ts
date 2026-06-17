@@ -1,11 +1,21 @@
 import { NextResponse } from "next/server";
-import { syncStoredTellerConnections } from "@/lib/teller/sync";
+import { createServerClient } from "@/lib/supabase/server";
+import { syncStoredTellerConnectionsForUser } from "@/lib/teller/sync";
 
 export const runtime = "nodejs";
 
 export async function POST() {
   try {
-    const summary = await syncStoredTellerConnections();
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const summary = await syncStoredTellerConnectionsForUser(user.id);
     return NextResponse.json(summary);
   } catch (error) {
     return NextResponse.json(

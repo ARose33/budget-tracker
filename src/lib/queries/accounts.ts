@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
+import { getCurrentUserId } from "@/lib/supabase/auth";
 
 export interface Account {
   id: string;
@@ -12,9 +13,11 @@ export interface Account {
 }
 
 export async function getAccounts(): Promise<Account[]> {
+  const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from("accounts")
     .select("id, name, institution, type, current_balance, last_synced_at, plaid_account_id, hidden")
+    .eq("user_id", userId)
     .order("institution")
     .order("name");
 
@@ -23,10 +26,12 @@ export async function getAccounts(): Promise<Account[]> {
 }
 
 export async function toggleAccountHidden(accountId: string, hidden: boolean) {
+  const userId = await getCurrentUserId();
   const { error } = await supabase
     .from("accounts")
     .update({ hidden })
-    .eq("id", accountId);
+    .eq("id", accountId)
+    .eq("user_id", userId);
   if (error) throw error;
 }
 
@@ -36,12 +41,7 @@ export async function createAccount(input: {
   type: string;
   current_balance: number;
 }) {
-  // Get an existing user_id to reuse (RLS constraint)
-  const { data: existing } = await supabase
-    .from("accounts")
-    .select("user_id")
-    .limit(1)
-    .single();
+  const userId = await getCurrentUserId();
 
   const { data, error } = await supabase
     .from("accounts")
@@ -51,7 +51,7 @@ export async function createAccount(input: {
       type: input.type,
       current_balance: input.current_balance,
       last_synced_at: new Date().toISOString(),
-      user_id: existing?.user_id,
+      user_id: userId,
     })
     .select()
     .single();
@@ -63,12 +63,14 @@ export async function updateAccountBalance(
   accountId: string,
   currentBalance: number
 ) {
+  const userId = await getCurrentUserId();
   const { error } = await supabase
     .from("accounts")
     .update({
       current_balance: currentBalance,
       last_synced_at: new Date().toISOString(),
     })
-    .eq("id", accountId);
+    .eq("id", accountId)
+    .eq("user_id", userId);
   if (error) throw error;
 }

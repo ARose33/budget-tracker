@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
+import { getCurrentUserId } from "@/lib/supabase/auth";
 
 export interface Category {
   id: string;
@@ -8,9 +9,11 @@ export interface Category {
 }
 
 export async function getCategories(): Promise<Category[]> {
+  const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from("budget_categories")
     .select("id, group_name, line_item_name, category_type")
+    .eq("user_id", userId)
     .order("group_name")
     .order("line_item_name");
 

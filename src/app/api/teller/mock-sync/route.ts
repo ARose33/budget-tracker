@@ -6,6 +6,7 @@ import {
   listTellerAccounts,
   listTellerTransactions,
 } from "@/lib/teller/client";
+import { createServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -46,6 +47,15 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const summary = await saveAndSyncTellerEnrollment({
       accessToken: "mock_teller_access_token",
       enrollment: {
@@ -58,7 +68,7 @@ export async function POST(request: NextRequest) {
       user: {
         id: "usr_mock_budget_tracker",
       },
-    });
+    }, user.id);
 
     return NextResponse.json(summary);
   } catch (error) {

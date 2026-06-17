@@ -829,6 +829,7 @@ export type Database = {
           id: string
           institution_name: string | null
           item_id: string | null
+          user_id: string | null
         }
         Insert: {
           access_token: string
@@ -837,6 +838,7 @@ export type Database = {
           id?: string
           institution_name?: string | null
           item_id?: string | null
+          user_id?: string | null
         }
         Update: {
           access_token?: string
@@ -845,6 +847,7 @@ export type Database = {
           id?: string
           institution_name?: string | null
           item_id?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }

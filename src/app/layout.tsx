@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/lib/providers";
-import { Sidebar, MobileNav } from "@/components/layout/sidebar";
+import { AppShell } from "@/components/layout/app-shell";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -49,15 +49,7 @@ export default function RootLayout({
     >
       <body className="h-full bg-background">
         <Providers>
-          <div className="flex h-full">
-            <Sidebar />
-            <div className="flex flex-1 flex-col overflow-hidden">
-              <MobileNav />
-              <main className="flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-8">
-                {children}
-              </main>
-            </div>
-          </div>
+          <AppShell>{children}</AppShell>
         </Providers>
       </body>
     </html>

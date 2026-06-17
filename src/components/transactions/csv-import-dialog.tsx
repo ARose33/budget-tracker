@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase/client";
+import { getCurrentUserId } from "@/lib/supabase/auth";
 import { toast } from "sonner";
 import { Upload, FileText, AlertTriangle } from "lucide-react";
 
@@ -138,12 +139,15 @@ export function CsvImportDialog({
       })
       .filter((r) => r.amount !== 0 && r.date);
 
+    const userId = await getCurrentUserId();
+
     // Check for duplicates
     const dupeChecks = await Promise.all(
       rows.map(async (r) => {
         const { count } = await supabase
           .from("transactions")
           .select("*", { count: "exact", head: true })
+          .eq("user_id", userId)
           .eq("date", r.date)
           .eq("amount", r.amount)
           .ilike("description", `%${r.description.slice(0, 20)}%`);
@@ -180,6 +184,8 @@ export function CsvImportDialog({
       return;
     }
 
+    const userId = await getCurrentUserId();
+
     const insertRows = rowsToImport.map((r) => ({
       date: r.date,
       description: r.description,
@@ -187,6 +193,7 @@ export function CsvImportDialog({
       upload_source: "csv_import",
       status: "Unconfirmed",
       not_duplicate: r.overridden ? true : false,
+      user_id: userId,
     }));
 
     const { error } = await supabase.from("transactions").insert(insertRows);

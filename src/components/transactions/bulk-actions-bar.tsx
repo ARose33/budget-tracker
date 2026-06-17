@@ -27,7 +27,7 @@ type EditMode = null | "category" | "account" | "status" | "description" | "date
 
 interface BulkActionsBarProps {
   selectedCount: number;
-  onSetCategory: (categoryId: string) => void;
+  onSetCategory: (categoryId: string | null) => void;
   onSetAccount: (accountId: string) => void;
   onSetStatus: (status: string) => void;
   onSetDescription: (description: string) => void;

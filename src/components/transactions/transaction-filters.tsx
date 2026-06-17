@@ -41,10 +41,11 @@ export function TransactionFiltersBar({
         <CategorySelect
           value={filters.categoryId ?? null}
           onValueChange={(v) =>
-            onChange({ ...filters, categoryId: v === "__uncategorized__" ? undefined : v })
+            onChange({ ...filters, categoryId: v ?? undefined })
           }
           placeholder="All categories"
           className="w-[200px]"
+          includeUncategorized={false}
         />
         <Input
           type="date"

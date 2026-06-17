@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
+import { getCurrentUserId } from "@/lib/supabase/auth";
 
 export interface Transaction {
   id: string;
@@ -41,6 +42,7 @@ export async function getTransactions(
   pageSize: number = 50,
   filters: TransactionFilters = {}
 ): Promise<{ data: Transaction[]; count: number }> {
+  const userId = await getCurrentUserId();
   let query = supabase
     .from("transactions")
     .select(
@@ -53,6 +55,7 @@ export async function getTransactions(
     `,
       { count: "exact" }
     )
+    .eq("user_id", userId)
     .is("parent_id", null) // exclude split children from main list
     .order("date", { ascending: false })
     .order("created_at", { ascending: false });
@@ -93,37 +96,45 @@ export async function updateTransactionCategory(
   transactionId: string,
   categoryId: string | null
 ) {
+  const userId = await getCurrentUserId();
   const { error } = await supabase
     .from("transactions")
     .update({ category_id: categoryId })
-    .eq("id", transactionId);
+    .eq("id", transactionId)
+    .eq("user_id", userId);
   if (error) throw error;
 }
 
 export async function bulkUpdateCategory(
   transactionIds: string[],
-  categoryId: string
+  categoryId: string | null
 ) {
+  const userId = await getCurrentUserId();
   const { error } = await supabase
     .from("transactions")
     .update({ category_id: categoryId })
-    .in("id", transactionIds);
+    .in("id", transactionIds)
+    .eq("user_id", userId);
   if (error) throw error;
 }
 
 export async function bulkConfirm(transactionIds: string[]) {
+  const userId = await getCurrentUserId();
   const { error } = await supabase
     .from("transactions")
     .update({ status: "Confirmed" })
-    .in("id", transactionIds);
+    .in("id", transactionIds)
+    .eq("user_id", userId);
   if (error) throw error;
 }
 
 export async function deleteTransactions(transactionIds: string[]) {
+  const userId = await getCurrentUserId();
   const { error } = await supabase
     .from("transactions")
     .delete()
-    .in("id", transactionIds);
+    .in("id", transactionIds)
+    .eq("user_id", userId);
   if (error) throw error;
 }
 
@@ -137,10 +148,12 @@ export async function bulkUpdateAccount(
   transactionIds: string[],
   accountId: string
 ) {
+  const userId = await getCurrentUserId();
   const { error } = await supabase
     .from("transactions")
     .update({ account_id: accountId })
-    .in("id", transactionIds);
+    .in("id", transactionIds)
+    .eq("user_id", userId);
   if (error) throw error;
 }
 
@@ -148,10 +161,12 @@ export async function bulkUpdateStatus(
   transactionIds: string[],
   status: string
 ) {
+  const userId = await getCurrentUserId();
   const { error } = await supabase
     .from("transactions")
     .update({ status })
-    .in("id", transactionIds);
+    .in("id", transactionIds)
+    .eq("user_id", userId);
   if (error) throw error;
 }
 
@@ -159,10 +174,12 @@ export async function bulkUpdateDate(
   transactionIds: string[],
   date: string
 ) {
+  const userId = await getCurrentUserId();
   const { error } = await supabase
     .from("transactions")
     .update({ date })
-    .in("id", transactionIds);
+    .in("id", transactionIds)
+    .eq("user_id", userId);
   if (error) throw error;
 }
 
@@ -170,10 +187,12 @@ export async function bulkUpdateDescription(
   transactionIds: string[],
   description: string
 ) {
+  const userId = await getCurrentUserId();
   const { error } = await supabase
     .from("transactions")
     .update({ description })
-    .in("id", transactionIds);
+    .in("id", transactionIds)
+    .eq("user_id", userId);
   if (error) throw error;
 }
 
@@ -181,10 +200,12 @@ export async function markNotDuplicate(
   transactionIds: string[],
   notDuplicate: boolean
 ) {
+  const userId = await getCurrentUserId();
   const { error } = await supabase
     .from("transactions")
     .update({ not_duplicate: notDuplicate })
-    .in("id", transactionIds);
+    .in("id", transactionIds)
+    .eq("user_id", userId);
   if (error) throw error;
 }
 
@@ -192,11 +213,13 @@ export async function splitTransaction(
   parentId: string,
   children: { category_id: string; amount: number; description?: string }[]
 ) {
+  const userId = await getCurrentUserId();
   // Get parent transaction
   const { data: parent, error: parentError } = await supabase
     .from("transactions")
     .select("*")
     .eq("id", parentId)
+    .eq("user_id", userId)
     .single();
 
   if (parentError) throw parentError;
@@ -205,7 +228,8 @@ export async function splitTransaction(
   await supabase
     .from("transactions")
     .update({ is_split: true })
-    .eq("id", parentId);
+    .eq("id", parentId)
+    .eq("user_id", userId);
 
   // Insert children
   const childRows = children.map((c) => ({
@@ -218,6 +242,7 @@ export async function splitTransaction(
     parent_id: parentId,
     is_split: true,
     source: parent.source,
+    user_id: userId,
   }));
 
   const { error } = await supabase.from("transactions").insert(childRows);

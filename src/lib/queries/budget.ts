@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
+import { getCurrentUserId } from "@/lib/supabase/auth";
 
 export interface BudgetLineItem {
   category_id: string;
@@ -64,12 +65,14 @@ export function groupBudgetItems(items: BudgetLineItem[]): BudgetGroup[] {
 }
 
 export async function ensureBudgetRows(year: number, month: number) {
+  const userId = await getCurrentUserId();
   // Check if budget rows exist for this month
   const { count } = await supabase
     .from("budgets")
     .select("*", { count: "exact", head: true })
     .eq("year_number", year)
-    .eq("month_number", month);
+    .eq("month_number", month)
+    .eq("user_id", userId);
 
   if (count && count > 0) return;
 
@@ -77,6 +80,7 @@ export async function ensureBudgetRows(year: number, month: number) {
   const { data: latest } = await supabase
     .from("budgets")
     .select("year_number, month_number")
+    .eq("user_id", userId)
     .order("year_number", { ascending: false })
     .order("month_number", { ascending: false })
     .limit(1);
@@ -91,7 +95,8 @@ export async function ensureBudgetRows(year: number, month: number) {
     .from("budgets")
     .select("category_id, budget_limit, user_id")
     .eq("year_number", lastYear)
-    .eq("month_number", lastMonth);
+    .eq("month_number", lastMonth)
+    .eq("user_id", userId);
 
   if (!templates || templates.length === 0) return;
 
@@ -112,12 +117,14 @@ export async function updateBudgetLimit(
   month: number,
   newLimit: number
 ) {
+  const userId = await getCurrentUserId();
   const { error } = await supabase
     .from("budgets")
     .update({ budget_limit: newLimit })
     .eq("category_id", categoryId)
     .eq("year_number", year)
-    .eq("month_number", month);
+    .eq("month_number", month)
+    .eq("user_id", userId);
 
   if (error) throw error;
 }

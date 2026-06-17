@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getSpendingByMonth } from "@/lib/queries/analysis";
+import {
+  getSpendingByMonth,
+  type SpendingGranularity,
+} from "@/lib/queries/analysis";
 import {
   BarChart,
   Bar,
@@ -31,14 +34,14 @@ const COLORS = [
 
 export default function SpendingPage() {
   const [months, setMonths] = useState("12");
+  const [granularity, setGranularity] = useState<SpendingGranularity>("group");
 
   const { data: raw = [], isLoading } = useQuery({
-    queryKey: ["spending-by-month", months],
-    queryFn: () => getSpendingByMonth(Number(months)),
+    queryKey: ["spending-by-month", months, granularity],
+    queryFn: () => getSpendingByMonth(Number(months), granularity),
   });
 
-  // Get unique groups
-  const groups = [...new Set(raw.map((r) => r.group_name))].sort();
+  const categories = [...new Set(raw.map((r) => r.category_label))].sort();
 
   // Pivot data: one row per month, one key per group
   const chartData = Object.values(
@@ -48,7 +51,7 @@ export default function SpendingPage() {
         if (!acc[key]) {
           acc[key] = { month: format(new Date(r.year_num, r.month_num - 1), "MMM yy") };
         }
-        acc[key][r.group_name] = Number(r.total);
+        acc[key][r.category_label] = Number(r.total);
         return acc;
       },
       {} as Record<string, Record<string, string | number>>
@@ -59,21 +62,38 @@ export default function SpendingPage() {
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Spending Trends</h2>
-        <Select value={months} onValueChange={(v) => v && setMonths(v)}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="6">Last 6 months</SelectItem>
-            <SelectItem value="12">Last 12 months</SelectItem>
-            <SelectItem value="24">Last 24 months</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Select
+            value={granularity}
+            onValueChange={(v) => v && setGranularity(v as SpendingGranularity)}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="group">Large groups</SelectItem>
+              <SelectItem value="category">Specific categories</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={months} onValueChange={(v) => v && setMonths(v)}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="6">Last 6 months</SelectItem>
+              <SelectItem value="12">Last 12 months</SelectItem>
+              <SelectItem value="24">Last 24 months</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Monthly Spending by Category</CardTitle>
+          <CardTitle>
+            Monthly Spending by{" "}
+            {granularity === "group" ? "Large Group" : "Specific Category"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -95,10 +115,10 @@ export default function SpendingPage() {
                   }
                 />
                 <Legend />
-                {groups.map((group, i) => (
+                {categories.map((category, i) => (
                   <Bar
-                    key={group}
-                    dataKey={group}
+                    key={category}
+                    dataKey={category}
                     stackId="a"
                     fill={COLORS[i % COLORS.length]}
                   />

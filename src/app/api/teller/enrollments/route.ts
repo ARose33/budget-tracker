@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { saveAndSyncTellerEnrollment } from "@/lib/teller/sync";
 import type { TellerEnrollmentPayload } from "@/lib/teller/client";
+import { createServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,15 @@ function isEnrollmentPayload(value: unknown): value is TellerEnrollmentPayload {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const enrollment = (await request.json()) as unknown;
     if (!isEnrollmentPayload(enrollment)) {
       return NextResponse.json(
@@ -25,7 +35,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const summary = await saveAndSyncTellerEnrollment(enrollment);
+    const summary = await saveAndSyncTellerEnrollment(enrollment, user.id);
     return NextResponse.json(summary);
   } catch (error) {
     return NextResponse.json(

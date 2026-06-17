@@ -11,6 +11,7 @@ import {
   Landmark,
   Menu,
   Wallet,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -98,9 +99,15 @@ function NavLinks({ onClick }: { onClick?: () => void }) {
       </div>
 
       <div className="px-3 pt-4 border-t border-sidebar-border">
-        <p className="text-[11px] text-sidebar-foreground/40">
-          Last updated today
-        </p>
+        <form action="/auth/sign-out" method="post">
+          <button
+            type="submit"
+            className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-xs font-medium text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Sign out
+          </button>
+        </form>
       </div>
     </nav>
   );
