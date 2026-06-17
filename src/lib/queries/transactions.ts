@@ -29,6 +29,7 @@ export interface Transaction {
 
 export interface TransactionFilters {
   search?: string;
+  categoryGroup?: string;
   categoryId?: string;
   accountId?: string;
   status?: string;
@@ -63,17 +64,31 @@ export async function getTransactions(
   if (filters.search) {
     query = query.ilike("description", `%${filters.search}%`);
   }
-  if (filters.categoryId) {
+  if (filters.uncategorizedOnly) {
+    query = query.is("category_id", null);
+  } else if (filters.categoryId) {
     query = query.eq("category_id", filters.categoryId);
+  } else if (filters.categoryGroup) {
+    const { data: categories, error: categoryError } = await supabase
+      .from("budget_categories")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("group_name", filters.categoryGroup);
+
+    if (categoryError) throw categoryError;
+
+    const categoryIds = categories?.map((category) => category.id) ?? [];
+    if (categoryIds.length === 0) {
+      return { data: [], count: 0 };
+    }
+
+    query = query.in("category_id", categoryIds);
   }
   if (filters.accountId) {
     query = query.eq("account_id", filters.accountId);
   }
   if (filters.status) {
     query = query.eq("status", filters.status);
-  }
-  if (filters.uncategorizedOnly) {
-    query = query.is("category_id", null);
   }
   if (filters.dateFrom) {
     query = query.gte("date", filters.dateFrom);
