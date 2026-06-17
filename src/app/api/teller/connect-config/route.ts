@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { getTellerConnectConfig } from "@/lib/teller/client";
+import { getErrorMessage } from "@/lib/api/errors";
 
 export const runtime = "nodejs";
 
@@ -33,7 +34,7 @@ export async function GET() {
     return response;
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
+      { error: getErrorMessage(error) },
       { status: 500 }
     );
   }

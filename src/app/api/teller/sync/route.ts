@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { syncStoredTellerConnectionsForUser } from "@/lib/teller/sync";
+import { getErrorMessage } from "@/lib/api/errors";
 
 export const runtime = "nodejs";
 
@@ -19,7 +20,7 @@ export async function POST() {
     return NextResponse.json(summary);
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
+      { error: getErrorMessage(error) },
       { status: 500 }
     );
   }

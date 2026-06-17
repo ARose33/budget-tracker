@@ -85,15 +85,18 @@ export function getTellerServerConfigStatus() {
   const hasApplicationId = Boolean(process.env.TELLER_APPLICATION_ID);
   const hasCertificate = Boolean(process.env.TELLER_CERTIFICATE);
   const hasPrivateKey = Boolean(process.env.TELLER_PRIVATE_KEY);
+  const hasServiceRoleKey = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   return {
     environment,
     hasApplicationId,
     hasCertificate,
     hasPrivateKey,
+    hasServiceRoleKey,
     mtlsRequired: environment !== "sandbox",
     ready:
       hasApplicationId &&
+      hasServiceRoleKey &&
       (environment === "sandbox" || (hasCertificate && hasPrivateKey)),
   };
 }

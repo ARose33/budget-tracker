@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { saveAndSyncTellerEnrollment } from "@/lib/teller/sync";
 import type { TellerEnrollmentPayload } from "@/lib/teller/client";
 import { createServerClient } from "@/lib/supabase/server";
+import { getErrorMessage } from "@/lib/api/errors";
 
 export const runtime = "nodejs";
 
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(summary);
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
+      { error: getErrorMessage(error) },
       { status: 500 }
     );
   }

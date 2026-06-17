@@ -54,7 +54,7 @@ export default function AccountsPage() {
   const tellerSyncMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch("/api/teller/sync", { method: "POST" });
-      const json = (await response.json()) as {
+      const json = (await response.json().catch(() => ({}))) as {
         accounts?: number;
         transactions?: number;
         error?: string;
@@ -93,6 +93,9 @@ export default function AccountsPage() {
   );
 
   const hiddenCount = accounts.filter((a) => a.hidden).length;
+  const hasTellerAccounts = accounts.some((account) =>
+    account.plaid_account_id?.startsWith("teller:")
+  );
 
   if (isLoading) {
     return (
@@ -111,8 +114,19 @@ export default function AccountsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => tellerSyncMutation.mutate()}
+            onClick={() => {
+              if (!hasTellerAccounts) {
+                toast.info("Connect Teller first to sync bank accounts.");
+                return;
+              }
+              tellerSyncMutation.mutate();
+            }}
             disabled={tellerSyncMutation.isPending}
+            title={
+              hasTellerAccounts
+                ? "Refresh connected Teller accounts"
+                : "Connect Teller first to sync bank accounts"
+            }
           >
             <RefreshCw
               className={cn(
@@ -120,7 +134,7 @@ export default function AccountsPage() {
                 tellerSyncMutation.isPending && "animate-spin"
               )}
             />
-            Sync Teller
+            {hasTellerAccounts ? "Sync Teller" : "Connect Teller first"}
           </Button>
           {hiddenCount > 0 && (
             <Button

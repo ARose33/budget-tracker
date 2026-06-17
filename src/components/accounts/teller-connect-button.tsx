@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Script from "next/script";
 import { useQueryClient } from "@tanstack/react-query";
-import { Landmark, Loader2 } from "lucide-react";
+import { AlertCircle, Landmark, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
@@ -13,6 +13,16 @@ interface TellerConnectConfig {
   nonce: string;
   products: string[];
   selectAccount: string;
+}
+
+interface TellerHealth {
+  environment: string;
+  hasApplicationId: boolean;
+  hasCertificate: boolean;
+  hasPrivateKey: boolean;
+  hasServiceRoleKey: boolean;
+  mtlsRequired: boolean;
+  ready: boolean;
 }
 
 interface TellerEnrollment {
@@ -46,6 +56,8 @@ interface TellerConnectGlobal {
   }) => TellerConnectInstance;
 }
 
+type ScriptStatus = "loading" | "ready" | "error";
+
 declare global {
   interface Window {
     TellerConnect?: TellerConnectGlobal;
@@ -53,7 +65,9 @@ declare global {
 }
 
 async function readJsonResponse<T extends object>(response: Response): Promise<T> {
-  const json = (await response.json()) as T | { error?: string };
+  const json = (await response.json().catch(() => ({}))) as
+    | T
+    | { error?: string };
   if (!response.ok) {
     throw new Error(
       "error" in json && json.error ? json.error : "Request failed"
@@ -62,19 +76,72 @@ async function readJsonResponse<T extends object>(response: Response): Promise<T
   return json as T;
 }
 
+function getTellerHealthMessage(health: TellerHealth) {
+  if (!health.hasApplicationId) {
+    return "Set TELLER_APPLICATION_ID to enable Teller Connect.";
+  }
+  if (!health.hasServiceRoleKey) {
+    return "Set SUPABASE_SERVICE_ROLE_KEY so Teller can save bank connections.";
+  }
+  if (health.mtlsRequired && (!health.hasCertificate || !health.hasPrivateKey)) {
+    return "Set TELLER_CERTIFICATE and TELLER_PRIVATE_KEY for this Teller environment.";
+  }
+  return null;
+}
+
 export function TellerConnectButton() {
   const queryClient = useQueryClient();
-  const [scriptReady, setScriptReady] = useState(false);
+  const [scriptStatus, setScriptStatus] = useState<ScriptStatus>("loading");
+  const [health, setHealth] = useState<TellerHealth | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadHealth() {
+      try {
+        const response = await fetch("/api/teller/health");
+        const nextHealth = await readJsonResponse<TellerHealth>(response);
+        if (!cancelled) {
+          setHealth(nextHealth);
+        }
+      } catch {
+        if (!cancelled) {
+          setHealth(null);
+        }
+      }
+    }
+
+    loadHealth();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleConnect = async () => {
-    if (!window.TellerConnect || !scriptReady) {
+    if (scriptStatus === "error") {
+      toast.error(
+        "Teller Connect failed to load. Check your network, browser extensions, or content blockers, then reload the page."
+      );
+      return;
+    }
+
+    if (!window.TellerConnect || scriptStatus !== "ready") {
       toast.error("Teller Connect is still loading");
       return;
     }
 
     setIsConnecting(true);
     try {
+      const healthResponse = await fetch("/api/teller/health");
+      const latestHealth = await readJsonResponse<TellerHealth>(healthResponse);
+      setHealth(latestHealth);
+      const healthMessage = getTellerHealthMessage(latestHealth);
+      if (healthMessage) {
+        throw new Error(healthMessage);
+      }
+
       const configResponse = await fetch("/api/teller/connect-config");
       const config = await readJsonResponse<TellerConnectConfig>(
         configResponse
@@ -126,25 +193,45 @@ export function TellerConnectButton() {
     }
   };
 
+  const healthMessage = health ? getTellerHealthMessage(health) : null;
+  const buttonDisabled = scriptStatus === "loading" || isConnecting;
+  const buttonLabel = isConnecting
+    ? "Connecting"
+    : scriptStatus === "loading"
+      ? "Loading Teller"
+      : scriptStatus === "error"
+        ? "Teller unavailable"
+        : healthMessage
+          ? "Setup Teller"
+          : "Connect Teller";
+
   return (
     <>
       <Script
         src="https://cdn.teller.io/connect/connect.js"
         strategy="afterInteractive"
-        onLoad={() => setScriptReady(true)}
+        onLoad={() => setScriptStatus("ready")}
+        onError={() => setScriptStatus("error")}
       />
       <Button
         size="sm"
         variant="outline"
         onClick={handleConnect}
-        disabled={!scriptReady || isConnecting}
+        disabled={buttonDisabled}
+        title={
+          scriptStatus === "error"
+            ? "Teller Connect script failed to load"
+            : healthMessage ?? undefined
+        }
       >
         {isConnecting ? (
           <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+        ) : scriptStatus === "error" || healthMessage ? (
+          <AlertCircle className="h-4 w-4 mr-1" />
         ) : (
           <Landmark className="h-4 w-4 mr-1" />
         )}
-        Connect Teller
+        {buttonLabel}
       </Button>
     </>
   );
