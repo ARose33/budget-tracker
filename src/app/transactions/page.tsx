@@ -63,7 +63,8 @@ export default function TransactionsPage() {
         .select("*", { count: "exact", head: true })
         .eq("user_id", userId)
         .is("category_id", null)
-        .is("parent_id", null);
+        .is("parent_id", null)
+        .or("external_status.is.null,external_status.neq.removed");
       return count ?? 0;
     },
   });

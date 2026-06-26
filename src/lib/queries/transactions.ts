@@ -58,6 +58,7 @@ export async function getTransactions(
     )
     .eq("user_id", userId)
     .is("parent_id", null) // exclude split children from main list
+    .or("external_status.is.null,external_status.neq.removed")
     .order("date", { ascending: false })
     .order("created_at", { ascending: false });
 
