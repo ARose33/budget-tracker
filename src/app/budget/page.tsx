@@ -6,22 +6,41 @@ import { toast } from "sonner";
 import { MonthPicker } from "@/components/layout/month-picker";
 import { BudgetSummaryCard } from "@/components/budget/budget-summary-card";
 import { BudgetGroupCard } from "@/components/budget/budget-group";
-import { BudgetEditDialog } from "@/components/budget/budget-edit-dialog";
 import {
+  BudgetEditDialog,
+  type BudgetDialogMode,
+  type BudgetFormValues,
+} from "@/components/budget/budget-edit-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  createBudgetCategory,
   getBudgetWithRollover,
   groupBudgetItems,
   ensureBudgetRows,
-  updateBudgetLimit,
-  type BudgetLineItem,
+  renameBudgetGroup,
+  updateBudgetLineItem,
+  type BudgetCategoryType,
 } from "@/lib/queries/budget";
 import { useMonthSelector } from "@/hooks/use-month-selector";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
+
+function getCategoryType(value: string): BudgetCategoryType {
+  return value.toLowerCase() === "income" ? "Income" : "Expense";
+}
+
+function getDialogKey(mode: BudgetDialogMode | null) {
+  if (!mode) return "closed";
+  if (mode.type === "add-group") return `add-group-${mode.categoryType}`;
+  if (mode.type === "add-item") return `add-item-${mode.group.group_name}`;
+  if (mode.type === "edit-group") return `edit-group-${mode.group.group_name}`;
+  return `edit-item-${mode.item.category_id}`;
+}
 
 function BudgetContent() {
   const { year, month } = useMonthSelector();
   const queryClient = useQueryClient();
-  const [editItem, setEditItem] = useState<BudgetLineItem | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<BudgetDialogMode | null>(null);
+  const dialogOpen = dialogMode !== null;
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["budget", year, month],
@@ -46,27 +65,74 @@ function BudgetContent() {
 
   const saveMutation = useMutation({
     mutationFn: ({
-      categoryId,
-      newLimit,
+      mode,
+      values,
     }: {
-      categoryId: string;
-      newLimit: number;
-    }) => updateBudgetLimit(categoryId, year, month, newLimit),
+      mode: BudgetDialogMode;
+      values: BudgetFormValues;
+    }) => {
+      if (mode.type === "add-group") {
+        return createBudgetCategory({
+          groupName: values.groupName,
+          lineItemName: values.lineItemName,
+          categoryType: mode.categoryType,
+          year,
+          month,
+          budgetLimit: values.budgetLimit,
+        });
+      }
+
+      if (mode.type === "add-item") {
+        return createBudgetCategory({
+          groupName: mode.group.group_name,
+          lineItemName: values.lineItemName,
+          categoryType: getCategoryType(mode.group.category_type),
+          year,
+          month,
+          budgetLimit: values.budgetLimit,
+        });
+      }
+
+      if (mode.type === "edit-group") {
+        return renameBudgetGroup({
+          currentGroupName: mode.group.group_name,
+          categoryType: mode.group.category_type,
+          newGroupName: values.groupName,
+        });
+      }
+
+      return updateBudgetLineItem({
+        categoryId: mode.item.category_id,
+        groupName: mode.item.group_name,
+        categoryType: mode.item.category_type,
+        lineItemName: values.lineItemName,
+        year,
+        month,
+        budgetLimit: values.budgetLimit,
+      });
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["budget", year, month] });
+      queryClient.invalidateQueries({ queryKey: ["budget"] });
+      setDialogMode(null);
       toast.success("Budget updated");
     },
-    onError: () => {
-      toast.error("Failed to update budget");
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update budget"
+      );
     },
   });
 
   const handleEdit = (categoryId: string) => {
     const item = items.find((i) => i.category_id === categoryId);
     if (item) {
-      setEditItem(item);
-      setEditOpen(true);
+      setDialogMode({ type: "edit-item", item });
     }
+  };
+
+  const handleSave = (values: BudgetFormValues) => {
+    if (!dialogMode) return;
+    saveMutation.mutate({ mode: dialogMode, values });
   };
 
   if (isLoading) {
@@ -111,39 +177,85 @@ function BudgetContent() {
         />
       </div>
 
-      {incomeGroups.length > 0 && (
-        <div className="space-y-3">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
           <h3 className="text-lg font-semibold text-emerald-700">Income</h3>
-          {incomeGroups.map((group) => (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              setDialogMode({ type: "add-group", categoryType: "Income" })
+            }
+          >
+            <Plus />
+            Add income category
+          </Button>
+        </div>
+        {incomeGroups.length > 0 ? (
+          incomeGroups.map((group) => (
             <BudgetGroupCard
               key={group.group_name}
               group={group}
               onEditItem={handleEdit}
+              onAddItem={(selectedGroup) =>
+                setDialogMode({ type: "add-item", group: selectedGroup })
+              }
+              onEditGroup={(selectedGroup) =>
+                setDialogMode({ type: "edit-group", group: selectedGroup })
+              }
             />
-          ))}
-        </div>
-      )}
+          ))
+        ) : (
+          <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+            No income categories yet.
+          </p>
+        )}
+      </div>
 
-      {expenseGroups.length > 0 && (
-        <div className="space-y-3">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
           <h3 className="text-lg font-semibold text-red-600">Expenses</h3>
-          {expenseGroups.map((group) => (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              setDialogMode({ type: "add-group", categoryType: "Expense" })
+            }
+          >
+            <Plus />
+            Add expense category
+          </Button>
+        </div>
+        {expenseGroups.length > 0 ? (
+          expenseGroups.map((group) => (
             <BudgetGroupCard
               key={group.group_name}
               group={group}
               onEditItem={handleEdit}
+              onAddItem={(selectedGroup) =>
+                setDialogMode({ type: "add-item", group: selectedGroup })
+              }
+              onEditGroup={(selectedGroup) =>
+                setDialogMode({ type: "edit-group", group: selectedGroup })
+              }
             />
-          ))}
-        </div>
-      )}
+          ))
+        ) : (
+          <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+            No expense categories yet.
+          </p>
+        )}
+      </div>
 
       <BudgetEditDialog
-        item={editItem}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        onSave={(categoryId, newLimit) =>
-          saveMutation.mutate({ categoryId, newLimit })
-        }
+        key={getDialogKey(dialogMode)}
+        mode={dialogMode}
+        open={dialogOpen}
+        isSaving={saveMutation.isPending}
+        onOpenChange={(open) => {
+          if (!open) setDialogMode(null);
+        }}
+        onSave={handleSave}
       />
     </div>
   );
