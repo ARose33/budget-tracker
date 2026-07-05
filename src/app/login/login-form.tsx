@@ -2,11 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, LockKeyhole, Wallet } from "lucide-react";
+import { Eye, EyeOff, Loader2, LockKeyhole, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { supabase } from "@/lib/supabase/client";
 
 type Mode = "sign-in" | "sign-up" | "reset-request";
@@ -20,6 +26,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
   const [mode, setMode] = useState<Mode>("sign-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [pendingConfirmationEmail, setPendingConfirmationEmail] = useState("");
@@ -174,6 +181,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
                     type="button"
                     onClick={() => {
                       setMode("reset-request");
+                      setShowPassword(false);
                       setPendingConfirmationEmail("");
                       setPendingResetEmail("");
                     }}
@@ -182,15 +190,31 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
                   </button>
                 ) : null}
               </div>
-              <Input
-                id="password"
-                type="password"
-                autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
-                minLength={6}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-              />
+              <InputGroup>
+                <InputGroupInput
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete={
+                    mode === "sign-in" ? "current-password" : "new-password"
+                  }
+                  minLength={6}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    type="button"
+                    size="icon-xs"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-pressed={showPassword}
+                    title={showPassword ? "Hide password" : "Show password"}
+                    onClick={() => setShowPassword((current) => !current)}
+                  >
+                    {showPassword ? <EyeOff /> : <Eye />}
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
             </div>
           ) : null}
           <Button className="w-full" type="submit" disabled={isSubmitting}>
@@ -212,6 +236,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
           variant="ghost"
           onClick={() => {
             setMode(mode === "sign-in" ? "sign-up" : "sign-in");
+            setShowPassword(false);
             setPendingConfirmationEmail("");
             setPendingResetEmail("");
           }}
