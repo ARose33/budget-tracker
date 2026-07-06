@@ -60,6 +60,7 @@ async function getSpendingByCategoryMonth(
     )
     .eq("user_id", userId)
     .is("parent_id", null)
+    .or("external_status.is.null,external_status.neq.removed")
     .lt("amount", 0)
     .gte("date", startDate)
     .ilike("budget_categories.category_type", "expense");

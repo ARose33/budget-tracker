@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { createPlaidLinkToken } from "@/lib/plaid/client";
+import { getErrorMessage } from "@/lib/api/errors";
 import { createServerClient } from "@/lib/supabase/server";
-import { syncStoredTellerConnectionsForUser } from "@/lib/teller/sync";
 
 export const runtime = "nodejs";
 
@@ -15,11 +16,11 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const summary = await syncStoredTellerConnectionsForUser(user.id);
-    return NextResponse.json(summary);
+    const token = await createPlaidLinkToken(user.id);
+    return NextResponse.json(token);
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
+      { error: getErrorMessage(error) },
       { status: 500 }
     );
   }

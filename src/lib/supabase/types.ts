@@ -66,36 +66,51 @@ export type Database = {
         Row: {
           access_token: string
           created_at: string
+          error_code: string | null
+          error_message: string | null
           id: string
+          institution_id: string | null
           institution_name: string | null
           last_synced_at: string | null
+          last_webhook_at: string | null
           provider: string
           provider_enrollment_id: string
           status: string
+          sync_cursor: string | null
           updated_at: string
           user_id: string | null
         }
         Insert: {
           access_token: string
           created_at?: string
+          error_code?: string | null
+          error_message?: string | null
           id?: string
+          institution_id?: string | null
           institution_name?: string | null
           last_synced_at?: string | null
+          last_webhook_at?: string | null
           provider: string
           provider_enrollment_id: string
           status?: string
+          sync_cursor?: string | null
           updated_at?: string
           user_id?: string | null
         }
         Update: {
           access_token?: string
           created_at?: string
+          error_code?: string | null
+          error_message?: string | null
           id?: string
+          institution_id?: string | null
           institution_name?: string | null
           last_synced_at?: string | null
+          last_webhook_at?: string | null
           provider?: string
           provider_enrollment_id?: string
           status?: string
+          sync_cursor?: string | null
           updated_at?: string
           user_id?: string | null
         }
