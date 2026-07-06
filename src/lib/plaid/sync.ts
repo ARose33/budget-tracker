@@ -170,8 +170,8 @@ async function findLikelyDuplicate(
       "id, account_id, description, date, source, category_id, status, is_split, not_duplicate"
     )
     .eq("user_id", userId)
-    .neq("connection_provider", PROVIDER)
     .is("parent_id", null)
+    .or(`connection_provider.is.null,connection_provider.neq.${PROVIDER}`)
     .gte("date", from)
     .lte("date", to)
     .gte("amount", amount - 0.005)
