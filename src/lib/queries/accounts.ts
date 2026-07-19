@@ -1,11 +1,16 @@
 import { supabase } from "@/lib/supabase/client";
 import { getCurrentUserId } from "@/lib/supabase/auth";
+import {
+  SUPPORTED_ACCOUNT_TYPES,
+  isSupportedAccountType,
+  type SupportedAccountType,
+} from "@/lib/accounts/account-types";
 
 export interface Account {
   id: string;
   name: string;
   institution: string;
-  type: string | null;
+  type: SupportedAccountType | null;
   current_balance: number | null;
   last_synced_at: string | null;
   plaid_account_id: string | null;
@@ -31,11 +36,14 @@ export async function getAccounts(): Promise<Account[]> {
       "id, name, institution, type, current_balance, last_synced_at, plaid_account_id, connection_provider, external_account_id, hidden"
     )
     .eq("user_id", userId)
+    .in("type", [...SUPPORTED_ACCOUNT_TYPES])
     .order("institution")
     .order("name");
 
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []).filter((account): account is Account =>
+    isSupportedAccountType(account.type)
+  );
 }
 
 export async function getBankConnections(): Promise<BankConnectionStatus[]> {
@@ -64,10 +72,13 @@ export async function toggleAccountHidden(accountId: string, hidden: boolean) {
 export async function createAccount(input: {
   name: string;
   institution: string;
-  type: string;
+  type: SupportedAccountType;
   current_balance: number;
 }) {
   const userId = await getCurrentUserId();
+  if (!isSupportedAccountType(input.type)) {
+    throw new Error("Unsupported account type");
+  }
 
   const { data, error } = await supabase
     .from("accounts")

@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getAccounts } from "@/lib/queries/accounts";
+import { SUPPORTED_ACCOUNT_TYPES } from "@/lib/accounts/account-types";
 
 interface AccountSelectProps {
   value: string | null;
@@ -30,16 +31,10 @@ export function AccountSelect({
 
   const visibleAccounts = accounts.filter((a) => !a.hidden);
 
-  // Group by type
-  const grouped = visibleAccounts.reduce(
-    (acc, a) => {
-      const type = a.type || "Other";
-      if (!acc[type]) acc[type] = [];
-      acc[type].push(a);
-      return acc;
-    },
-    {} as Record<string, typeof visibleAccounts>
-  );
+  const grouped = SUPPORTED_ACCOUNT_TYPES.map((type) => ({
+    type,
+    accounts: visibleAccounts.filter((account) => account.type === type),
+  })).filter((group) => group.accounts.length > 0);
 
   return (
     <Select value={value ?? ""} onValueChange={(v) => v && onValueChange(v)}>
@@ -47,7 +42,7 @@ export function AccountSelect({
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
-        {Object.entries(grouped).map(([type, accts]) => (
+        {grouped.map(({ type, accounts: accts }) => (
           <div key={type}>
             <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
               {type}

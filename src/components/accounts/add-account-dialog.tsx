@@ -20,16 +20,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createAccount } from "@/lib/queries/accounts";
-
-const ACCOUNT_TYPES = [
-  "Checking",
-  "Savings",
-  "Credit Card",
-  "Brokerage",
-  "Retirement",
-  "Debt",
-  "Asset",
-];
+import {
+  SUPPORTED_ACCOUNT_TYPES,
+  isSupportedAccountType,
+  type SupportedAccountType,
+} from "@/lib/accounts/account-types";
 
 interface AddAccountDialogProps {
   open: boolean;
@@ -43,7 +38,7 @@ export function AddAccountDialog({
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [institution, setInstitution] = useState("");
-  const [type, setType] = useState("Checking");
+  const [type, setType] = useState<SupportedAccountType>("Checking");
 
   const reset = () => {
     setName("");
@@ -110,12 +105,17 @@ export function AddAccountDialog({
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Type</label>
-            <Select value={type} onValueChange={(v) => v && setType(v)}>
+            <Select
+              value={type}
+              onValueChange={(v) => {
+                if (isSupportedAccountType(v)) setType(v);
+              }}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {ACCOUNT_TYPES.map((t) => (
+                {SUPPORTED_ACCOUNT_TYPES.map((t) => (
                   <SelectItem key={t} value={t}>
                     {t}
                   </SelectItem>

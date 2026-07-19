@@ -7,6 +7,7 @@ import {
   getPlaidItem,
   syncPlaidTransactions,
 } from "@/lib/plaid/client";
+import type { SupportedAccountType } from "@/lib/accounts/account-types";
 
 const PROVIDER = "plaid";
 const DUPLICATE_WINDOW_DAYS = 2;
@@ -37,7 +38,7 @@ interface LinkMetadata {
   } | null;
 }
 
-function toAppAccountType(account: AccountBase) {
+function toAppAccountType(account: AccountBase): SupportedAccountType | null {
   if (account.type === "depository" && account.subtype === "checking") {
     return "Checking";
   }
@@ -47,10 +48,7 @@ function toAppAccountType(account: AccountBase) {
   if (account.type === "credit") {
     return "Credit Card";
   }
-  if (account.type === "investment" || account.type === "brokerage") {
-    return "Brokerage";
-  }
-  return account.subtype || account.type || "Other";
+  return null;
 }
 
 function toAppAmount(transaction: Transaction) {
@@ -106,6 +104,9 @@ async function syncAccount(
   institutionName: string
 ) {
   const supabase = createServiceRoleClient();
+  const accountType = toAppAccountType(plaidAccount);
+  if (!accountType) return null;
+
   const currentBalance = Number(plaidAccount.balances.current);
   const syncedAt = new Date().toISOString();
 
@@ -124,7 +125,7 @@ async function syncAccount(
     external_account_id: plaidAccount.account_id,
     institution: institutionName,
     name: accountDisplayName(plaidAccount),
-    type: toAppAccountType(plaidAccount),
+    type: accountType,
     current_balance: Number.isFinite(currentBalance) ? currentBalance : null,
     last_synced_at: syncedAt,
     user_id: userId,
@@ -334,7 +335,9 @@ async function syncAccountsForConnection(connection: StoredConnection) {
       connection.user_id,
       connection.institution_name ?? "Plaid"
     );
-    accountMap.set(account.account_id, localAccountId);
+    if (localAccountId) {
+      accountMap.set(account.account_id, localAccountId);
+    }
   }
 
   return accountMap;
@@ -365,15 +368,20 @@ export async function syncPlaidConnection(connection: StoredConnection) {
             connection.user_id,
             connection.institution_name ?? "Plaid"
           );
-          accountMap.set(account.account_id, localAccountId);
+          if (localAccountId) {
+            accountMap.set(account.account_id, localAccountId);
+          }
         }
       }
 
       const changedTransactions = [...data.added, ...data.modified];
       for (const transaction of changedTransactions) {
+        const localAccountId = accountMap.get(transaction.account_id);
+        if (!localAccountId) continue;
+
         const result = await upsertPlaidTransaction(
           transaction,
-          accountMap.get(transaction.account_id) ?? null,
+          localAccountId,
           connection.user_id
         );
         if (result === "synced") transactionCount += 1;

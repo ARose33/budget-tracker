@@ -15,7 +15,6 @@ import {
   Landmark,
   CreditCard,
   PiggyBank,
-  TrendingUp,
   Wallet,
   Eye,
   EyeOff,
@@ -27,13 +26,15 @@ import { format } from "date-fns";
 import { AddAccountDialog } from "@/components/accounts/add-account-dialog";
 import { PlaidConnectButton } from "@/components/accounts/plaid-connect-button";
 import { Plus } from "lucide-react";
+import {
+  SUPPORTED_ACCOUNT_TYPES,
+  type SupportedAccountType,
+} from "@/lib/accounts/account-types";
 
-const typeIcons: Record<string, typeof Landmark> = {
+const typeIcons: Record<SupportedAccountType, typeof Landmark> = {
   Checking: Wallet,
   Savings: PiggyBank,
   "Credit Card": CreditCard,
-  Brokerage: TrendingUp,
-  Retirement: TrendingUp,
 };
 
 export default function AccountsPage() {
@@ -94,16 +95,10 @@ export default function AccountsPage() {
     ? accounts
     : accounts.filter((a) => !a.hidden);
 
-  // Group by type
-  const grouped = visibleAccounts.reduce(
-    (acc, a) => {
-      const type = a.type || "Other";
-      if (!acc[type]) acc[type] = [];
-      acc[type].push(a);
-      return acc;
-    },
-    {} as Record<string, typeof visibleAccounts>
-  );
+  const grouped = SUPPORTED_ACCOUNT_TYPES.map((type) => ({
+    type,
+    accounts: visibleAccounts.filter((account) => account.type === type),
+  })).filter((group) => group.accounts.length > 0);
 
   const hiddenCount = accounts.filter((a) => a.hidden).length;
   const hasPlaidConnections =
@@ -207,8 +202,8 @@ export default function AccountsPage() {
         </div>
       )}
 
-      {Object.entries(grouped).map(([type, accts]) => {
-        const Icon = typeIcons[type] ?? Landmark;
+      {grouped.map(({ type, accounts: accts }) => {
+        const Icon = typeIcons[type];
         return (
           <div key={type} className="space-y-3">
             <h3 className="text-lg font-semibold flex items-center gap-2">
