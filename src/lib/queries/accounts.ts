@@ -53,6 +53,7 @@ export async function getBankConnections(): Promise<BankConnectionStatus[]> {
     .select("id, institution_name, institution_id, last_synced_at, provider, status")
     .eq("user_id", userId)
     .eq("provider", "plaid")
+    .eq("status", "active")
     .order("institution_name");
 
   if (error) throw error;
