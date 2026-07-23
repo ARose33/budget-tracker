@@ -592,6 +592,7 @@ export async function syncPlaidConnectionByItemId(itemId: string) {
     )
     .eq("provider", PROVIDER)
     .eq("provider_enrollment_id", itemId)
+    .eq("status", "active")
     .maybeSingle();
 
   if (error) throw error;
