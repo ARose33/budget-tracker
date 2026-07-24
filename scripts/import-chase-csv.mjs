@@ -294,6 +294,90 @@ function parseCsv(filePath) {
   }));
 }
 
+function categoryKey(category) {
+  return `${category.group_name}::${category.line_item_name}`;
+}
+
+function categoryLabel(category) {
+  return `${category.group_name}: ${category.line_item_name}`;
+}
+
+function getCliValue(name) {
+  const arg = process.argv.find((value) => value.startsWith(`--${name}=`));
+  return arg ? arg.slice(name.length + 3) : null;
+}
+
+function getBudgetWindow(rows, env) {
+  const firstDate = rows[0]?.date ? new Date(`${rows[0].date}T00:00:00`) : new Date();
+  const year =
+    Number(getCliValue("budget-year")) ||
+    Number(env.CHASE_IMPORT_BUDGET_YEAR) ||
+    firstDate.getFullYear();
+  const month =
+    Number(getCliValue("budget-month")) ||
+    Number(env.CHASE_IMPORT_BUDGET_MONTH) ||
+    firstDate.getMonth() + 1;
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+    throw new Error(
+      "Invalid budget window. Use --budget-year=YYYY --budget-month=1-12."
+    );
+  }
+
+  return { year, month };
+}
+
+async function getBudgetCategoryIds(supabase, userId, year, month) {
+  const { data, error } = await supabase
+    .from("budgets")
+    .select("category_id, budget_categories(group_name, line_item_name, category_type)")
+    .eq("year_number", year)
+    .eq("month_number", month)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+
+  const byKey = new Map();
+  for (const row of data || []) {
+    const category = Array.isArray(row.budget_categories)
+      ? row.budget_categories[0]
+      : row.budget_categories;
+
+    if (!row.category_id || !category) continue;
+    byKey.set(categoryKey(category), {
+      id: row.category_id,
+      ...category,
+    });
+  }
+
+  return byKey;
+}
+
+function applyBudgetCategories(rows, budgetCategories) {
+  let matched = 0;
+  let cleared = 0;
+
+  const updatedRows = rows.map((row) => {
+    const budgetCategory = budgetCategories.get(categoryKey(row.category));
+    if (!budgetCategory) {
+      cleared += 1;
+      return { ...row, category: null };
+    }
+
+    matched += 1;
+    return {
+      ...row,
+      category: {
+        group_name: budgetCategory.group_name,
+        line_item_name: budgetCategory.line_item_name,
+        category_type: budgetCategory.category_type,
+      },
+    };
+  });
+
+  return { rows: updatedRows, matched, cleared };
+}
+
 function toCsvValue(value) {
   const stringValue = value == null ? "" : String(value);
   if (!/[",\r\n]/.test(stringValue)) return stringValue;
@@ -322,9 +406,9 @@ function writeCategorizedCsv(rows, outputPath) {
         row.amount,
         row.chase_category,
         row.chase_type,
-        row.category.group_name,
-        row.category.line_item_name,
-        row.category.category_type,
+        row.category?.group_name,
+        row.category?.line_item_name,
+        row.category?.category_type,
       ]
         .map(toCsvValue)
         .join(",")
@@ -341,8 +425,8 @@ function summarizeRows(rows, extra = {}) {
   const duplicateKeys = new Set();
   const seenKeys = new Set();
 
-  for (const row of rows) {
-    const key = `${row.category.group_name}: ${row.category.line_item_name}`;
+  for (const [index, row] of rows.entries()) {
+    const key = row.category ? categoryLabel(row.category) : "(uncategorized)";
     const chaseKey = row.chase_category || "(blank)";
     const duplicateKey = `${row.date}::${Number(row.amount).toFixed(2)}::${row.description}`;
 
@@ -413,42 +497,6 @@ async function getOrCreateAccount(supabase, userId, dryRun) {
   return data.id;
 }
 
-async function getOrCreateCategories(supabase, userId, categoryDefs, dryRun) {
-  const { data: existing, error } = await supabase
-    .from("budget_categories")
-    .select("id, group_name, line_item_name")
-    .eq("user_id", userId);
-
-  if (error) throw error;
-
-  const byKey = new Map(
-    (existing || []).map((cat) => [
-      `${cat.group_name}::${cat.line_item_name}`,
-      cat.id,
-    ])
-  );
-
-  for (const category of categoryDefs) {
-    const key = `${category.group_name}::${category.line_item_name}`;
-    if (byKey.has(key)) continue;
-    if (dryRun) {
-      byKey.set(key, `dry-run-${key}`);
-      continue;
-    }
-
-    const { data, error: insertError } = await supabase
-      .from("budget_categories")
-      .insert({ ...category, user_id: userId })
-      .select("id")
-      .single();
-
-    if (insertError) throw insertError;
-    byKey.set(key, data.id);
-  }
-
-  return byKey;
-}
-
 async function existingTransactionKeys(supabase, userId, rows) {
   const minDate = rows.reduce((min, row) => (row.date < min ? row.date : min), rows[0].date);
   const maxDate = rows.reduce((max, row) => (row.date > max ? row.date : max), rows[0].date);
@@ -473,14 +521,14 @@ async function main() {
   const outputPath = outputArg ? outputArg.slice("--output=".length) : DEFAULT_OUTPUT_PATH;
   if (!filePath) {
     throw new Error(
-      "Usage: node scripts/import-chase-csv.js <file.csv> [--local-only] [--commit] [--output=imports/categorized.csv]"
+      "Usage: node scripts/import-chase-csv.mjs <file.csv> [--local-only] [--commit] [--budget-year=YYYY] [--budget-month=1-12] [--output=imports/categorized.csv]"
     );
   }
 
   const rows = parseCsv(filePath);
-  writeCategorizedCsv(rows, outputPath);
 
   if (localOnly) {
+    writeCategorizedCsv(rows, outputPath);
     console.log(
       JSON.stringify(
         summarizeRows(rows, {
@@ -500,11 +548,17 @@ async function main() {
     env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
   const userId = await getUserId(supabase, env.CHASE_IMPORT_USER_ID);
-  const accountId = await getOrCreateAccount(supabase, userId, !commit);
-  const categoryDefs = Array.from(
-    new Map(rows.map((row) => [`${row.category.group_name}::${row.category.line_item_name}`, row.category])).values()
+  const budgetWindow = getBudgetWindow(rows, env);
+  const budgetCategories = await getBudgetCategoryIds(
+    supabase,
+    userId,
+    budgetWindow.year,
+    budgetWindow.month
   );
-  const categoryIds = await getOrCreateCategories(supabase, userId, categoryDefs, !commit);
+  const budgetApplied = applyBudgetCategories(rows, budgetCategories);
+  writeCategorizedCsv(budgetApplied.rows, outputPath);
+
+  const accountId = await getOrCreateAccount(supabase, userId, !commit);
   const existingKeys = await existingTransactionKeys(supabase, userId, rows);
 
   const seenCsvKeys = new Set();
@@ -515,13 +569,18 @@ async function main() {
     if (existingKeys.has(key) || seenCsvKeys.has(key)) continue;
     seenCsvKeys.add(key);
 
-    const categoryKey = `${row.category.group_name}::${row.category.line_item_name}`;
+    const categorizedRow = budgetApplied.rows[index];
+    const category = categorizedRow?.category || null;
+    const budgetCategory = category
+      ? budgetCategories.get(categoryKey(category))
+      : null;
+
     insertRows.push({
       date: row.date,
       description: row.description,
       amount: row.amount,
-      category_id: categoryIds.get(categoryKey),
-      category: `${row.category.group_name}: ${row.category.line_item_name}`,
+      category_id: budgetCategory?.id ?? null,
+      category: category ? categoryLabel(category) : null,
       account_id: accountId,
       account: ACCOUNT_NAME,
       status: "Unconfirmed",
@@ -540,8 +599,12 @@ async function main() {
   console.log(
     JSON.stringify(
       {
-        ...summarizeRows(rows),
+        ...summarizeRows(budgetApplied.rows),
         mode: commit ? "commit" : "dry-run",
+        budgetWindow,
+        budgetCategories: budgetCategories.size,
+        matchedBudgetCategories: budgetApplied.matched,
+        clearedNonBudgetCategories: budgetApplied.cleared,
         toInsert: insertRows.length,
         skippedAsDuplicates: rows.length - insertRows.length,
         outputPath,

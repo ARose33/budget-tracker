@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getAccounts,
-  getBankConnections,
   toggleAccountHidden,
 } from "@/lib/queries/accounts";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,18 +11,19 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Loader2,
-  Landmark,
   CreditCard,
   PiggyBank,
   Wallet,
   Eye,
   EyeOff,
   RefreshCw,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { AddAccountDialog } from "@/components/accounts/add-account-dialog";
+import { PasskeySettings } from "@/components/accounts/passkey-settings";
 import { PlaidConnectButton } from "@/components/accounts/plaid-connect-button";
 import { Plus } from "lucide-react";
 import {
@@ -31,7 +31,7 @@ import {
   type SupportedAccountType,
 } from "@/lib/accounts/account-types";
 
-const typeIcons: Record<SupportedAccountType, typeof Landmark> = {
+const typeIcons: Record<SupportedAccountType, LucideIcon> = {
   Checking: Wallet,
   Savings: PiggyBank,
   "Credit Card": CreditCard,
@@ -45,10 +45,6 @@ export default function AccountsPage() {
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ["accounts"],
     queryFn: getAccounts,
-  });
-  const { data: bankConnections = [] } = useQuery({
-    queryKey: ["bank-connections"],
-    queryFn: getBankConnections,
   });
 
   const toggleMutation = useMutation({
@@ -82,7 +78,6 @@ export default function AccountsPage() {
         `Plaid synced ${summary.accounts ?? 0} accounts and ${summary.transactions ?? 0} transactions${duplicateText}`
       );
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["bank-connections"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["budget"] });
     },
@@ -101,9 +96,9 @@ export default function AccountsPage() {
   })).filter((group) => group.accounts.length > 0);
 
   const hiddenCount = accounts.filter((a) => a.hidden).length;
-  const hasPlaidConnections =
-    bankConnections.length > 0 ||
-    accounts.some((account) => account.connection_provider === "plaid");
+  const hasPlaidConnections = accounts.some(
+    (account) => account.connection_provider === "plaid"
+  );
 
   if (isLoading) {
     return (
@@ -115,9 +110,9 @@ export default function AccountsPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl font-bold">Accounts</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <PlaidConnectButton />
           <Button
             variant="outline"
@@ -167,40 +162,7 @@ export default function AccountsPage() {
         </div>
       </div>
 
-      {bankConnections.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Landmark className="h-5 w-5" />
-            Connected Banks
-          </h3>
-          <div className="grid gap-3 md:grid-cols-2">
-            {bankConnections.map((connection) => (
-              <Card key={connection.id}>
-                <CardContent className="pt-6">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium">
-                        {connection.institution_name ?? "Plaid connection"}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {connection.last_synced_at
-                          ? `Synced ${format(new Date(connection.last_synced_at), "MMM d, yyyy 'at' h:mm a")}`
-                          : "Sync pending"}
-                      </p>
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className="text-xs border-emerald-200 text-emerald-700"
-                    >
-                      {connection.status}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
+      <PasskeySettings />
 
       {grouped.map(({ type, accounts: accts }) => {
         const Icon = typeIcons[type];

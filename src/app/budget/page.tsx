@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { MonthPicker } from "@/components/layout/month-picker";
+import { MonthlyRemainingPanel } from "@/components/budget/monthly-remaining-panel";
 import { BudgetSummaryCard } from "@/components/budget/budget-summary-card";
 import { BudgetGroupCard } from "@/components/budget/budget-group";
 import {
@@ -145,12 +146,18 @@ function BudgetContent() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl font-bold">Monthly Budget</h2>
         <MonthPicker />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <MonthlyRemainingPanel
+        expenseGroups={expenseGroups}
+        year={year}
+        month={month}
+      />
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <BudgetSummaryCard
           label="Income"
           amount={totalIncome}
@@ -178,11 +185,12 @@ function BudgetContent() {
       </div>
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-lg font-semibold text-emerald-700">Income</h3>
           <Button
             size="sm"
             variant="outline"
+            className="w-full sm:w-auto"
             onClick={() =>
               setDialogMode({ type: "add-group", categoryType: "Income" })
             }
@@ -213,11 +221,12 @@ function BudgetContent() {
       </div>
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-lg font-semibold text-red-600">Expenses</h3>
           <Button
             size="sm"
             variant="outline"
+            className="w-full sm:w-auto"
             onClick={() =>
               setDialogMode({ type: "add-group", categoryType: "Expense" })
             }

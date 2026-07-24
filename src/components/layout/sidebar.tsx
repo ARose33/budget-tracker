@@ -9,12 +9,18 @@ import {
   DollarSign,
   CalendarRange,
   Landmark,
-  Menu,
+  MoreHorizontal,
   Wallet,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { useState } from "react";
 
 const navSections: {
@@ -123,23 +129,93 @@ export function Sidebar() {
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  const primaryItems = navSections[0].items;
+  const moreItems = navSections[1].items;
+  const moreActive = pathname.startsWith("/analysis");
+
+  const mobileItemClass =
+    "flex h-14 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors";
 
   return (
-    <div className="md:hidden flex items-center border-b bg-background/80 backdrop-blur px-4 py-3 sticky top-0 z-30">
+    <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t bg-background/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+      {primaryItems.map((item) => {
+        const isActive = pathname === item.href;
+
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={cn(
+              mobileItemClass,
+              isActive ? "text-primary" : "text-muted-foreground"
+            )}
+          >
+            <item.icon
+              className={cn(
+                "h-5 w-5",
+                isActive ? "text-primary" : "text-muted-foreground"
+              )}
+            />
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger className="inline-flex items-center justify-center rounded-md h-9 w-9 hover:bg-accent hover:text-accent-foreground transition-colors">
-          <Menu className="h-5 w-5" />
+        <SheetTrigger
+          className={cn(
+            mobileItemClass,
+            moreActive ? "text-primary" : "text-muted-foreground"
+          )}
+        >
+          <MoreHorizontal
+            className={cn(
+              "h-5 w-5",
+              moreActive ? "text-primary" : "text-muted-foreground"
+            )}
+          />
+          <span>More</span>
         </SheetTrigger>
-        <SheetContent side="left" className="w-64 p-0 bg-sidebar text-sidebar-foreground border-sidebar-border">
-          <NavLinks onClick={() => setOpen(false)} />
+        <SheetContent
+          side="bottom"
+          className="rounded-t-xl bg-background pb-[env(safe-area-inset-bottom)]"
+        >
+          <SheetHeader>
+            <SheetTitle>More</SheetTitle>
+          </SheetHeader>
+          <div className="grid gap-1 px-4 pb-4">
+            {moreItems.map((item) => {
+              const isActive = pathname === item.href;
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
+                </Link>
+              );
+            })}
+            <form action="/auth/sign-out" method="post" className="mt-2">
+              <button
+                type="submit"
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </button>
+            </form>
+          </div>
         </SheetContent>
       </Sheet>
-      <div className="flex items-center gap-2 ml-3">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-teal-600 shadow-md shadow-emerald-500/30">
-          <Wallet className="h-4 w-4 text-white" />
-        </div>
-        <span className="font-semibold tracking-tight">Budget Tracker</span>
-      </div>
-    </div>
+    </nav>
   );
 }

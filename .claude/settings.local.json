@@ -33,7 +33,12 @@
       "Bash(gh repo:*)",
       "mcp__b17b42a2-fc4f-4bae-a936-b231c3dde876__get_project",
       "Bash(node -e ':*)",
-      "mcp__d6c17c77-21c2-40ae-a52f-e85eed5e5906__execute_sql"
+      "mcp__d6c17c77-21c2-40ae-a52f-e85eed5e5906__execute_sql",
+      "Bash(curl -sS -I \"https://jxmpeafhuedzepuadmmd.supabase.co/rest/v1/\")",
+      "Bash(nslookup jxmpeafhuedzepuadmmd.supabase.co 8.8.8.8)",
+      "Bash(ping -n 1 jxmpeafhuedzepuadmmd.supabase.co)",
+      "mcp__d6c17c77-21c2-40ae-a52f-e85eed5e5906__restore_project",
+      "mcp__d6c17c77-21c2-40ae-a52f-e85eed5e5906__get_project"
     ]
   }
 }

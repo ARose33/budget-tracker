@@ -2,7 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Loader2, LockKeyhole, Wallet } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Fingerprint,
+  Loader2,
+  LockKeyhole,
+  ShieldCheck,
+  Wallet,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,13 +21,29 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import {
+  browserSupportsPasskeys,
+  getPasskeyErrorMessage,
+  getPasskeyPromptKey,
+} from "@/lib/auth/passkeys";
 import { supabase } from "@/lib/supabase/client";
 
 type Mode = "sign-in" | "sign-up" | "reset-request";
 
+const duplicateAccountMessage =
+  "An account already exists for this email. Sign in or reset your password.";
+
 const productionOrigin =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
   "https://budget-tracker-beta-bice.vercel.app";
+
+const isDuplicateSignupError = (error: { code?: string; message?: string }) =>
+  error.code === "user_already_exists" ||
+  error.message?.includes("User already registered");
+
+const isObfuscatedDuplicateSignup = (
+  data: Awaited<ReturnType<typeof supabase.auth.signUp>>["data"]
+) => !data.session && data.user?.identities?.length === 0;
 
 export function LoginForm({ nextPath }: { nextPath: string }) {
   const router = useRouter();
@@ -28,7 +52,10 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPasskeySubmitting, setIsPasskeySubmitting] = useState(false);
+  const [isRegisteringPasskey, setIsRegisteringPasskey] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [passkeySetupEmail, setPasskeySetupEmail] = useState("");
   const [pendingConfirmationEmail, setPendingConfirmationEmail] = useState("");
   const [pendingResetEmail, setPendingResetEmail] = useState("");
 
@@ -42,6 +69,97 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
 
   const getPasswordResetRedirectTo = () =>
     `${getAuthOrigin()}/reset-password`;
+
+  const redirectAfterAuth = () => {
+    router.replace(nextPath);
+    router.refresh();
+  };
+
+  const markPasskeyPromptSeen = (authEmail: string) => {
+    try {
+      localStorage.setItem(getPasskeyPromptKey(authEmail), "1");
+    } catch {
+      // localStorage can be unavailable in private browsing or locked-down modes.
+    }
+  };
+
+  const shouldOfferPasskeySetup = (authEmail: string) => {
+    if (!browserSupportsPasskeys()) return false;
+
+    try {
+      return !localStorage.getItem(getPasskeyPromptKey(authEmail));
+    } catch {
+      return true;
+    }
+  };
+
+  const finishAuthenticatedFlow = ({
+    message,
+    authEmail,
+  }: {
+    message: string;
+    authEmail: string;
+  }) => {
+    toast.success(message);
+
+    if (shouldOfferPasskeySetup(authEmail)) {
+      markPasskeyPromptSeen(authEmail);
+      setPasskeySetupEmail(authEmail);
+      return;
+    }
+
+    redirectAfterAuth();
+  };
+
+  const handlePasskeySignIn = async () => {
+    if (!browserSupportsPasskeys()) {
+      toast.error("Passkeys are not available in this browser.");
+      return;
+    }
+
+    setIsPasskeySubmitting(true);
+    const { error } = await supabase.auth.signInWithPasskey();
+    setIsPasskeySubmitting(false);
+
+    if (error) {
+      toast.error(getPasskeyErrorMessage(error));
+      return;
+    }
+
+    toast.success("Signed in with passkey");
+    redirectAfterAuth();
+  };
+
+  const handleRegisterPasskey = async () => {
+    if (!passkeySetupEmail) return;
+
+    if (!browserSupportsPasskeys()) {
+      toast.error("Passkeys are not available in this browser.");
+      redirectAfterAuth();
+      return;
+    }
+
+    setIsRegisteringPasskey(true);
+    const { error } = await supabase.auth.registerPasskey();
+    setIsRegisteringPasskey(false);
+
+    if (error) {
+      toast.error(getPasskeyErrorMessage(error));
+      return;
+    }
+
+    markPasskeyPromptSeen(passkeySetupEmail);
+    toast.success("Face ID login is ready");
+    redirectAfterAuth();
+  };
+
+  const handleSkipPasskeySetup = () => {
+    if (passkeySetupEmail) {
+      markPasskeyPromptSeen(passkeySetupEmail);
+    }
+
+    redirectAfterAuth();
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -83,20 +201,41 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
       setIsSubmitting(false);
 
       if (error) {
+        if (isDuplicateSignupError(error)) {
+          setPendingConfirmationEmail("");
+          setMode("sign-in");
+          setShowPassword(false);
+          toast.error(duplicateAccountMessage);
+          return;
+        }
+
         toast.error(error.message);
+        return;
+      }
+
+      if (isObfuscatedDuplicateSignup(data)) {
+        setPendingConfirmationEmail("");
+        setMode("sign-in");
+        setShowPassword(false);
+        toast.error(duplicateAccountMessage);
         return;
       }
 
       const needsEmailConfirmation = !data.session;
       if (needsEmailConfirmation) {
         setPendingConfirmationEmail(credentials.email);
-        toast.success("Check your email to confirm your account.");
+        toast.success(
+          data.user
+            ? "Check your email to confirm your account."
+            : "If this is a new account, check your email to confirm it. If you already have an account, sign in or reset your password."
+        );
         return;
       }
 
-      toast.success("Account created");
-      router.replace(nextPath);
-      router.refresh();
+      finishAuthenticatedFlow({
+        message: "Account created",
+        authEmail: credentials.email,
+      });
       return;
     }
 
@@ -109,9 +248,10 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
       return;
     }
 
-    toast.success("Signed in");
-    router.replace(nextPath);
-    router.refresh();
+    finishAuthenticatedFlow({
+      message: "Signed in",
+      authEmail: credentials.email,
+    });
   };
 
   const handleResendConfirmation = async () => {
@@ -140,6 +280,47 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
     toast.success("Confirmation email sent.");
   };
 
+  if (passkeySetupEmail) {
+    return (
+      <Card className="w-full max-w-sm">
+        <CardHeader className="space-y-4 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <ShieldCheck className="h-6 w-6" />
+          </div>
+          <CardTitle>Set up Face ID login</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-center text-sm text-muted-foreground">
+            Add a passkey for {passkeySetupEmail}. Your password will still work
+            as a backup.
+          </p>
+          <Button
+            className="h-10 w-full"
+            type="button"
+            onClick={handleRegisterPasskey}
+            disabled={isRegisteringPasskey}
+          >
+            {isRegisteringPasskey ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Fingerprint className="h-4 w-4" />
+            )}
+            Set up Face ID / Passkey
+          </Button>
+          <Button
+            className="w-full"
+            type="button"
+            variant="ghost"
+            onClick={handleSkipPasskeySetup}
+            disabled={isRegisteringPasskey}
+          >
+            Not now
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="w-full max-w-sm">
       <CardHeader className="space-y-4 text-center">
@@ -155,6 +336,28 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {mode === "sign-in" ? (
+          <>
+            <Button
+              className="h-10 w-full"
+              type="button"
+              onClick={handlePasskeySignIn}
+              disabled={isPasskeySubmitting || isSubmitting}
+            >
+              {isPasskeySubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Fingerprint className="h-4 w-4" />
+              )}
+              Continue with Face ID / Passkey
+            </Button>
+            <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              <span>or use password</span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+          </>
+        ) : null}
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
             <label className="text-sm font-medium" htmlFor="email">

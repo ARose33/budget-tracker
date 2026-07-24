@@ -17,7 +17,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <MobileNav />
-        <main className="flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-8">
+        <main className="flex-1 overflow-y-auto px-3 py-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-4 md:px-8 md:py-8 md:pb-8">
           {children}
         </main>
       </div>

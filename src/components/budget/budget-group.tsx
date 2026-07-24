@@ -42,8 +42,8 @@ export function BudgetGroupCard({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 transition-colors hover:bg-accent/50">
-        <CollapsibleTrigger className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left">
+      <div className="flex flex-col gap-2 rounded-lg border bg-card px-3 py-3 transition-colors hover:bg-accent/50 sm:flex-row sm:items-center sm:py-2">
+        <CollapsibleTrigger className="flex min-w-0 flex-1 items-start justify-between gap-3 text-left sm:items-center">
           <div className="flex min-w-0 items-center gap-2">
             <ChevronRight
               className={cn(
@@ -66,22 +66,24 @@ export function BudgetGroupCard({
             {formatCurrency(group.total_effective)}
           </span>
         </CollapsibleTrigger>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="grid grid-cols-[1fr_auto] gap-1 sm:flex sm:shrink-0 sm:items-center">
           <Button
             aria-label={`Add subcategory to ${group.group_name}`}
             title={`Add subcategory to ${group.group_name}`}
             size="sm"
             variant="outline"
+            className="h-9 sm:h-7"
             onClick={() => onAddItem?.(group)}
           >
             <Plus />
-            Subcategory
+            <span>Subcategory</span>
           </Button>
           <Button
             aria-label={`Edit ${group.group_name} category`}
             title={`Edit ${group.group_name} category`}
-            size="icon-sm"
+            size="icon-lg"
             variant="ghost"
+            className="sm:size-7"
             onClick={() => onEditGroup?.(group)}
           >
             <Pencil />

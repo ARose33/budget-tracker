@@ -30,15 +30,15 @@ export function BudgetLineItemRow({ item, onClick }: BudgetLineItemRowProps) {
 
   return (
     <div
-      className="flex items-center gap-4 py-2 px-3 rounded-md hover:bg-accent/50 cursor-pointer transition-colors"
+      className="flex cursor-pointer items-center gap-4 rounded-md px-3 py-3 transition-colors hover:bg-accent/50 sm:py-2"
       onClick={onClick}
     >
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-1">
+        <div className="mb-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-sm font-medium truncate">
             {item.line_item_name}
           </span>
-          <div className="flex items-center gap-2 ml-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 sm:ml-2 sm:shrink-0">
             {rollover !== 0 && (
               <Badge
                 variant="outline"
