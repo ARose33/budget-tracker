@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   getTransactions,
   updateTransactionCategory,
+  updateTransactionNotes,
   bulkUpdateCategory,
   bulkUpdateAccount,
   bulkUpdateStatus,
@@ -14,6 +15,8 @@ import {
   deleteTransactions,
   markNotDuplicate,
   type TransactionFilters,
+  type TransactionSort,
+  type TransactionSortField,
   type Transaction,
 } from "@/lib/queries/transactions";
 import { TransactionFiltersBar } from "@/components/transactions/transaction-filters";
@@ -23,11 +26,24 @@ import { CsvImportDialog } from "@/components/transactions/csv-import-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   ChevronLeft,
   ChevronRight,
   Upload,
   Loader2,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  StickyNote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase/client";
@@ -45,13 +61,17 @@ export default function TransactionsPage() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(0);
   const [filters, setFilters] = useState<TransactionFilters>({});
+  const [sort, setSort] = useState<TransactionSort>({
+    field: "date",
+    direction: "desc",
+  });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [csvOpen, setCsvOpen] = useState(false);
   const pageSize = 50;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["transactions", page, filters],
-    queryFn: () => getTransactions(page, pageSize, filters),
+    queryKey: ["transactions", page, filters, sort],
+    queryFn: () => getTransactions(page, pageSize, filters, sort),
   });
 
   const { data: uncatData } = useQuery({
@@ -101,6 +121,16 @@ export default function TransactionsPage() {
     mutationFn: ({ id, categoryId }: { id: string; categoryId: string | null }) =>
       updateTransactionCategory(id, categoryId),
     onSuccess: invalidate,
+  });
+
+  const notesMutation = useMutation({
+    mutationFn: ({ id, notes }: { id: string; notes: string | null }) =>
+      updateTransactionNotes(id, notes),
+    onSuccess: () => {
+      toast.success("Transaction note saved");
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+    onError: () => toast.error("Could not save transaction note"),
   });
 
   const bulkCategoryMutation = useMutation({
@@ -164,6 +194,16 @@ export default function TransactionsPage() {
     },
   });
 
+  const handleSort = (field: TransactionSortField) => {
+    setSort((current) => ({
+      field,
+      direction:
+        current.field === field && current.direction === "asc" ? "desc" : "asc",
+    }));
+    setPage(0);
+    setSelected(new Set());
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
@@ -210,13 +250,14 @@ export default function TransactionsPage() {
                       onCheckedChange={toggleAll}
                     />
                   </th>
-                  <th className="text-left p-3">Date</th>
-                  <th className="text-left p-3">Description</th>
-                  <th className="text-right p-3">Amount</th>
-                  <th className="text-left p-3 w-[140px]">Group</th>
-                  <th className="text-left p-3 w-[180px]">Line Item</th>
-                  <th className="text-left p-3">Account</th>
-                  <th className="text-center p-3">Status</th>
+                  <SortableHeader field="date" sort={sort} onSort={handleSort}>Date</SortableHeader>
+                  <SortableHeader field="description" sort={sort} onSort={handleSort}>Description</SortableHeader>
+                  <SortableHeader field="amount" sort={sort} onSort={handleSort} align="right">Amount</SortableHeader>
+                  <SortableHeader field="group" sort={sort} onSort={handleSort} className="w-[140px]">Group</SortableHeader>
+                  <SortableHeader field="lineItem" sort={sort} onSort={handleSort} className="w-[180px]">Line Item</SortableHeader>
+                  <SortableHeader field="account" sort={sort} onSort={handleSort}>Account</SortableHeader>
+                  <SortableHeader field="status" sort={sort} onSort={handleSort} align="center">Status</SortableHeader>
+                  <th className="text-center p-3 w-16">Note</th>
                 </tr>
               </thead>
               <tbody>
@@ -229,12 +270,15 @@ export default function TransactionsPage() {
                     onCategoryChange={(cid) =>
                       categoryMutation.mutate({ id: t.id, categoryId: cid })
                     }
+                    onNotesChange={(notes) =>
+                      notesMutation.mutateAsync({ id: t.id, notes })
+                    }
                   />
                 ))}
                 {transactions.length === 0 && (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={9}
                       className="text-center py-12 text-muted-foreground"
                     >
                       No transactions found
@@ -287,16 +331,65 @@ export default function TransactionsPage() {
   );
 }
 
+function SortableHeader({
+  field,
+  sort,
+  onSort,
+  children,
+  align = "left",
+  className,
+}: {
+  field: TransactionSortField;
+  sort: TransactionSort;
+  onSort: (field: TransactionSortField) => void;
+  children: React.ReactNode;
+  align?: "left" | "center" | "right";
+  className?: string;
+}) {
+  const active = sort.field === field;
+  const Icon = active
+    ? sort.direction === "asc"
+      ? ArrowUp
+      : ArrowDown
+    : ArrowUpDown;
+
+  return (
+    <th className={cn("p-3", className)}>
+      <button
+        type="button"
+        onClick={() => onSort(field)}
+        className={cn(
+          "flex w-full items-center gap-1 rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          align === "right" && "justify-end",
+          align === "center" && "justify-center",
+          align === "left" && "justify-start"
+        )}
+        aria-label={`Sort by ${String(children)}`}
+      >
+        {children}
+        <Icon
+          className={cn(
+            "h-3.5 w-3.5 shrink-0",
+            active ? "text-foreground" : "text-muted-foreground/50"
+          )}
+        />
+      </button>
+    </th>
+  );
+}
+
 function TransactionRow({
   transaction: t,
   isSelected,
   onToggle,
   onCategoryChange,
+  onNotesChange,
 }: {
   transaction: Transaction;
   isSelected: boolean;
   onToggle: () => void;
   onCategoryChange: (categoryId: string | null) => void;
+  onNotesChange: (notes: string | null) => Promise<unknown>;
 }) {
   const isExpense = t.amount < 0;
   const groupName = t.budget_categories?.group_name ?? "Uncategorized";
@@ -361,6 +454,80 @@ function TransactionRow({
           {t.status ?? "Unknown"}
         </Badge>
       </td>
+      <td className="p-3 text-center">
+        <TransactionNoteDialog transaction={t} onSave={onNotesChange} />
+      </td>
     </tr>
+  );
+}
+
+function TransactionNoteDialog({
+  transaction,
+  onSave,
+}: {
+  transaction: Transaction;
+  onSave: (notes: string | null) => Promise<unknown>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [notes, setNotes] = useState(transaction.notes ?? "");
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) setNotes(transaction.notes ?? "");
+  }, [open, transaction.notes]);
+
+  const save = async () => {
+    setIsSaving(true);
+    try {
+      const normalizedNotes = notes.trim() || null;
+      await onSave(normalizedNotes);
+      setNotes(normalizedNotes ?? "");
+      setOpen(false);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        onClick={() => setOpen(true)}
+        aria-label={transaction.notes ? "Edit transaction note" : "Add transaction note"}
+        title={transaction.notes ?? "Add note"}
+        className={cn(transaction.notes && "text-blue-600")}
+      >
+        <StickyNote className={cn("h-4 w-4", transaction.notes && "fill-current/15")} />
+      </Button>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Transaction note</DialogTitle>
+          <DialogDescription>
+            Add a private note for {transaction.description || "this transaction"}.
+          </DialogDescription>
+        </DialogHeader>
+        <Textarea
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          placeholder="Add details, context, or a reminder..."
+          rows={5}
+          maxLength={2000}
+          autoFocus
+        />
+        <div className="text-right text-xs text-muted-foreground">
+          {notes.length}/2000
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>
+            Cancel
+          </Button>
+          <Button onClick={save} disabled={isSaving}>
+            {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+            Save note
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
