@@ -72,8 +72,9 @@ export function BulkActionsBar({
               onSetCategory(v);
               cancelEdit();
             }}
-            placeholder="Pick category"
+            placeholder="Pick line item"
             className="w-[200px]"
+            displayMode="lineItem"
           />
           <Button variant="ghost" size="sm" onClick={cancelEdit}>
             <X className="h-3.5 w-3.5" />
@@ -185,7 +186,7 @@ export function BulkActionsBar({
             onClick={() => setEditMode("category")}
           >
             <Tag className="h-3.5 w-3.5 mr-1" />
-            Category
+            Line item
           </Button>
           <Button
             variant="outline"
