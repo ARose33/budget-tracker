@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/popover";
 import { Search, X, Filter, ChevronsUpDown } from "lucide-react";
 import { getCategories, type Category } from "@/lib/queries/categories";
+import { getAccounts, type Account } from "@/lib/queries/accounts";
 import type { TransactionFilters } from "@/lib/queries/transactions";
 
 interface TransactionFiltersBarProps {
@@ -35,6 +36,10 @@ export function TransactionFiltersBar({
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
     queryFn: getCategories,
+  });
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: getAccounts,
   });
 
   const groups = useMemo(
@@ -67,6 +72,7 @@ export function TransactionFiltersBar({
     filters.search ||
     filters.categoryGroup ||
     filters.categoryId ||
+    filters.accountId ||
     filters.status ||
     filters.uncategorizedOnly ||
     filters.dateFrom ||
@@ -132,6 +138,13 @@ export function TransactionFiltersBar({
           selectedCategory={selectedLineItem}
           onValueChange={handleLineItemChange}
         />
+        <AccountFilter
+          accounts={accounts}
+          value={filters.accountId}
+          onValueChange={(accountId) =>
+            onChange({ ...filters, accountId })
+          }
+        />
         <Input
           type="date"
           value={filters.dateFrom || ""}
@@ -171,6 +184,76 @@ export function TransactionFiltersBar({
         )}
       </div>
     </div>
+  );
+}
+
+function AccountFilter({
+  accounts,
+  value,
+  onValueChange,
+}: {
+  accounts: Account[];
+  value?: string;
+  onValueChange: (value: string | undefined) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedAccount = accounts.find((account) => account.id === value);
+
+  const selectValue = (nextValue: string | undefined) => {
+    onValueChange(nextValue);
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            className="w-[190px] justify-between font-normal"
+          />
+        }
+      >
+        <span className="min-w-0 truncate">
+          {selectedAccount?.name ?? "All accounts"}
+        </span>
+        <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-(--anchor-width) min-w-64 p-0">
+        <Command loop>
+          <CommandInput placeholder="Search accounts..." autoFocus />
+          <CommandList>
+            <CommandEmpty>No accounts found.</CommandEmpty>
+            <CommandItem
+              value="All accounts"
+              keywords={["all", "accounts"]}
+              onSelect={() => selectValue(undefined)}
+              data-checked={!value}
+            >
+              All accounts
+            </CommandItem>
+            {accounts.map((account) => (
+              <CommandItem
+                key={account.id}
+                value={`${account.name} ${account.institution}`}
+                keywords={[account.name, account.institution]}
+                onSelect={() => selectValue(account.id)}
+                data-checked={value === account.id}
+              >
+                <span className="flex min-w-0 flex-col">
+                  <span className="truncate">{account.name}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {account.institution}
+                  </span>
+                </span>
+              </CommandItem>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 

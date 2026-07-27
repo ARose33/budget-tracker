@@ -5,6 +5,7 @@ export interface Transaction {
   id: string;
   date: string;
   description: string | null;
+  notes: string | null;
   amount: number;
   category_id: string | null;
   account_id: string | null;
@@ -38,17 +39,32 @@ export interface TransactionFilters {
   dateTo?: string;
 }
 
+export type TransactionSortField =
+  | "date"
+  | "description"
+  | "amount"
+  | "group"
+  | "lineItem"
+  | "account"
+  | "status";
+
+export interface TransactionSort {
+  field: TransactionSortField;
+  direction: "asc" | "desc";
+}
+
 export async function getTransactions(
   page: number = 0,
   pageSize: number = 50,
-  filters: TransactionFilters = {}
+  filters: TransactionFilters = {},
+  sort: TransactionSort = { field: "date", direction: "desc" }
 ): Promise<{ data: Transaction[]; count: number }> {
   const userId = await getCurrentUserId();
   let query = supabase
     .from("transactions")
     .select(
       `
-      id, date, description, amount, category_id, account_id,
+      id, date, description, notes, amount, category_id, account_id,
       status, is_split, parent_id, source, upload_source, created_at,
       plaid_transaction_id, not_duplicate,
       budget_categories(group_name, line_item_name, category_type),
@@ -58,9 +74,7 @@ export async function getTransactions(
     )
     .eq("user_id", userId)
     .is("parent_id", null) // exclude split children from main list
-    .or("external_status.is.null,external_status.neq.removed")
-    .order("date", { ascending: false })
-    .order("created_at", { ascending: false });
+    .or("external_status.is.null,external_status.neq.removed");
 
   if (filters.search) {
     query = query.ilike("description", `%${filters.search}%`);
@@ -98,6 +112,20 @@ export async function getTransactions(
     query = query.lte("date", filters.dateTo);
   }
 
+  const ascending = sort.direction === "asc";
+  const sortColumn =
+    sort.field === "group"
+      ? "budget_categories(group_name)"
+      : sort.field === "lineItem"
+        ? "budget_categories(line_item_name)"
+        : sort.field === "account"
+          ? "accounts(name)"
+          : sort.field;
+
+  query = query
+    .order(sortColumn, { ascending, nullsFirst: false })
+    .order("created_at", { ascending: false });
+
   const from = page * pageSize;
   const to = from + pageSize - 1;
   query = query.range(from, to);
@@ -116,6 +144,19 @@ export async function updateTransactionCategory(
   const { error } = await supabase
     .from("transactions")
     .update({ category_id: categoryId })
+    .eq("id", transactionId)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function updateTransactionNotes(
+  transactionId: string,
+  notes: string | null
+) {
+  const userId = await getCurrentUserId();
+  const { error } = await supabase
+    .from("transactions")
+    .update({ notes })
     .eq("id", transactionId)
     .eq("user_id", userId);
   if (error) throw error;
