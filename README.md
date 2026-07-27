@@ -31,6 +31,18 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This repository is linked to the production Vercel project through
+`.vercel/project.json`. Deployments must use the checked-in helper:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/deploy-production.ps1
+```
+
+The helper verifies Vercel CLI authentication, builds the application, deploys
+to production, and confirms that the production URL responds. A Git push alone
+must not be treated as a completed deployment.
+
+If a release introduces a Supabase schema migration, apply and verify that
+migration before running the Vercel helper. Never release frontend code that
+queries a production column that has not been confirmed through the Supabase
+API.
