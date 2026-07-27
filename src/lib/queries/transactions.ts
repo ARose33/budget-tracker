@@ -64,7 +64,7 @@ export async function getTransactions(
     .from("transactions")
     .select(
       `
-      id, date, description, notes, amount, category_id, account_id,
+      id, date, description, amount, category_id, account_id,
       status, is_split, parent_id, source, upload_source, created_at,
       plaid_transaction_id, not_duplicate,
       budget_categories(group_name, line_item_name, category_type),
@@ -133,7 +133,16 @@ export async function getTransactions(
   const { data, error, count } = await query;
   if (error) throw error;
 
-  return { data: (data as Transaction[]) ?? [], count: count ?? 0 };
+  const transactions = (data as Omit<Transaction, "notes">[]) ?? [];
+  const notes = await getTransactionNotes(transactions.map((transaction) => transaction.id));
+
+  return {
+    data: transactions.map((transaction) => ({
+      ...transaction,
+      notes: notes[transaction.id] ?? null,
+    })),
+    count: count ?? 0,
+  };
 }
 
 export async function updateTransactionCategory(
@@ -153,13 +162,26 @@ export async function updateTransactionNotes(
   transactionId: string,
   notes: string | null
 ) {
-  const userId = await getCurrentUserId();
-  const { error } = await supabase
-    .from("transactions")
-    .update({ notes })
-    .eq("id", transactionId)
-    .eq("user_id", userId);
-  if (error) throw error;
+  const response = await fetch("/api/transactions/notes", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ transactionId, notes }),
+  });
+  if (!response.ok) {
+    const result = await response.json().catch(() => null);
+    throw new Error(result?.error ?? "Could not save transaction note");
+  }
+}
+
+async function getTransactionNotes(transactionIds: string[]) {
+  if (transactionIds.length === 0) return {} as Record<string, string>;
+
+  const params = new URLSearchParams({ ids: transactionIds.join(",") });
+  const response = await fetch(`/api/transactions/notes?${params}`);
+  if (!response.ok) return {} as Record<string, string>;
+
+  const result = (await response.json()) as { notes?: Record<string, string> };
+  return result.notes ?? {};
 }
 
 export async function bulkUpdateCategory(
