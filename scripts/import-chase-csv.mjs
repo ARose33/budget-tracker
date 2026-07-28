@@ -173,7 +173,6 @@ function categorize(row) {
   }
 
   if (
-    lower.includes("claude.ai") ||
     lower.includes("lovable") ||
     lower.includes("snowflake")
   ) {
