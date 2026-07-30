@@ -14,8 +14,13 @@ When the user says to deploy, publish, push live, or asks whether a change is li
    - Prefer existing authenticated server APIs and private Storage for app data that does not require relational querying.
    - For SQL migrations, use the linked Supabase CLI/project credential when available and verify the resulting schema through the API.
    - Never deploy code that selects a column before confirming that column exists in production.
-4. Run `powershell -ExecutionPolicy Bypass -File scripts/deploy-production.ps1`.
-5. Verify the production URL or a feature-specific production endpoint. A successful build, commit, push, or deployment command is not proof that the feature is live.
-6. Report “live” only after production verification succeeds.
+4. Deploy through GitHub:
+   - Commit only the intended release scope.
+   - Push a release branch to `origin`.
+   - Open and merge a pull request into `master`.
+   - The Vercel GitHub integration deploys `master` to production automatically.
+5. Monitor the Vercel commit status through GitHub until it succeeds or fails.
+6. Verify the production URL or a feature-specific production endpoint. A successful build, commit, push, PR merge, or pending deployment is not proof that the feature is live.
+7. Report “live” only after the GitHub-triggered production deployment succeeds and production verification passes.
 
-The Vercel project is already linked by `.vercel/project.json`. Use the standard Vercel CLI credential location; do not default to dashboard login or assume that pushing `master` triggered a deployment. If authentication is unavailable, report that exact credential prerequisite rather than instructing the user to perform unrelated Supabase/Vercel dashboard steps.
+Do not require Vercel CLI authentication for routine deployments. Use the GitHub commit status and deployment checks as the source of truth for the GitHub-triggered Vercel deployment.

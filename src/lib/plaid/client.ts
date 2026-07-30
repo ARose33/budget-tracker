@@ -126,6 +126,12 @@ export async function getPlaidAccounts(accessToken: string) {
   return response.data.accounts;
 }
 
+export async function removePlaidItem(accessToken: string) {
+  const client = getPlaidClient();
+  const response = await client.itemRemove({ access_token: accessToken });
+  return response.data;
+}
+
 export async function syncPlaidTransactions(
   accessToken: string,
   cursor: string | null
