@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { AddAccountDialog } from "@/components/accounts/add-account-dialog";
 import { PlaidConnectButton } from "@/components/accounts/plaid-connect-button";
+import { PlaidConnectionCleanup } from "@/components/accounts/plaid-connection-cleanup";
 import { Plus } from "lucide-react";
 import {
   SUPPORTED_ACCOUNT_TYPES,
@@ -160,6 +161,8 @@ export default function AccountsPage() {
           </Button>
         </div>
       </div>
+
+      <PlaidConnectionCleanup />
 
       {grouped.map(({ type, accounts: accts }) => {
         const Icon = typeIcons[type];

@@ -79,6 +79,13 @@ export async function DELETE(
 
     await removePlaidItem(connection.access_token);
 
+    const { error: deleteError } = await supabase
+      .from("bank_connections")
+      .delete()
+      .eq("id", connection.id)
+      .eq("user_id", user.id);
+    if (deleteError) throw deleteError;
+
     return NextResponse.json({
       disconnected: true,
       accountsHidden: localAccountIds.length,
