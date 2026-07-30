@@ -5,6 +5,7 @@ import {
   exchangePlaidPublicToken,
   getPlaidAccounts,
   getPlaidItem,
+  removePlaidItem,
   syncPlaidTransactions,
 } from "@/lib/plaid/client";
 
@@ -35,6 +36,15 @@ interface LinkMetadata {
     institution_id?: string | null;
     name?: string | null;
   } | null;
+}
+
+export class DuplicatePlaidInstitutionError extends Error {
+  constructor(institutionName: string) {
+    super(
+      `${institutionName} is already connected. Use the existing connection instead of connecting it again.`
+    );
+    this.name = "DuplicatePlaidInstitutionError";
+  }
 }
 
 function toAppAccountType(account: AccountBase) {
@@ -431,6 +441,27 @@ export async function saveAndSyncPlaidItem(
   const institutionId =
     metadata.institution?.institution_id ?? item.institution_id ?? null;
 
+  if (institutionId) {
+    const { data: duplicateInstitution, error: duplicateLookupError } =
+      await supabase
+        .from("bank_connections")
+        .select("id")
+        .eq("provider", PROVIDER)
+        .eq("institution_id", institutionId)
+        .eq("status", "active")
+        .eq("user_id", authenticatedUserId)
+        .neq("provider_enrollment_id", token.item_id)
+        .limit(1)
+        .maybeSingle();
+
+    if (duplicateLookupError) throw duplicateLookupError;
+
+    if (duplicateInstitution) {
+      await removePlaidItem(token.access_token);
+      throw new DuplicatePlaidInstitutionError(institutionName);
+    }
+  }
+
   const { data: existing, error: lookupError } = await supabase
     .from("bank_connections")
     .select("id")
@@ -462,6 +493,10 @@ export async function saveAndSyncPlaidItem(
       status: "active",
       user_id: authenticatedUserId,
     });
+    if (error?.code === "23505" && institutionId) {
+      await removePlaidItem(token.access_token);
+      throw new DuplicatePlaidInstitutionError(institutionName);
+    }
     if (error) throw error;
   }
 
