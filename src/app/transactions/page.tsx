@@ -24,6 +24,7 @@ import { BulkActionsBar } from "@/components/transactions/bulk-actions-bar";
 import { CategorySelect } from "@/components/transactions/category-select";
 import { CsvImportDialog } from "@/components/transactions/csv-import-dialog";
 import { PdfStatementImportDialog } from "@/components/transactions/pdf-statement-import-dialog";
+import { SplitTransactionDialog } from "@/components/transactions/split-transaction-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,8 @@ import {
   ArrowDown,
   ArrowUpDown,
   StickyNote,
+  Scissors,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase/client";
@@ -87,6 +90,7 @@ export default function TransactionsPage() {
         .eq("user_id", userId)
         .is("category_id", null)
         .is("parent_id", null)
+        .or("is_split.is.null,is_split.eq.false")
         .or("external_status.is.null,external_status.neq.removed");
       return count ?? 0;
     },
@@ -267,6 +271,7 @@ export default function TransactionsPage() {
                   <SortableHeader field="account" sort={sort} onSort={handleSort}>Account</SortableHeader>
                   <SortableHeader field="status" sort={sort} onSort={handleSort} align="center">Status</SortableHeader>
                   <th className="text-center p-3 w-16">Note</th>
+                  <th className="text-center p-3 w-20">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -282,12 +287,13 @@ export default function TransactionsPage() {
                     onNotesChange={(notes) =>
                       notesMutation.mutateAsync({ id: t.id, notes })
                     }
+                    onSplitChange={invalidate}
                   />
                 ))}
                 {transactions.length === 0 && (
                   <tr>
                     <td
-                      colSpan={9}
+                      colSpan={10}
                       className="text-center py-12 text-muted-foreground"
                     >
                       No transactions found
@@ -398,19 +404,34 @@ function TransactionRow({
   onToggle,
   onCategoryChange,
   onNotesChange,
+  onSplitChange,
 }: {
   transaction: Transaction;
   isSelected: boolean;
   onToggle: () => void;
   onCategoryChange: (categoryId: string | null) => void;
   onNotesChange: (notes: string | null) => Promise<unknown>;
+  onSplitChange: () => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const isExpense = t.amount < 0;
-  const groupName = t.budget_categories?.group_name ?? "Uncategorized";
+  const groupName = t.is_split
+    ? `${t.allocations.length} allocations`
+    : t.budget_categories?.group_name ?? "Uncategorized";
   const lineItemName = t.budget_categories?.line_item_name ?? "Uncategorized";
+  const parentCents = Math.round(t.amount * 100);
+  const allocationCents = t.allocations.reduce(
+    (sum, allocation) => sum + Math.round(allocation.amount * 100),
+    0
+  );
+  const isBalanced = t.is_split && parentCents === allocationCents;
 
   return (
-    <tr className={cn("border-t hover:bg-accent/50", isSelected && "bg-accent/30")}>
+    <>
+    <tr
+      className={cn("border-t hover:bg-accent/50", isSelected && "bg-accent/30")}
+      aria-expanded={t.is_split ? expanded : undefined}
+    >
       <td className="p-3">
         <Checkbox checked={isSelected} onCheckedChange={onToggle} />
       </td>
@@ -418,8 +439,15 @@ function TransactionRow({
       <td className="p-3 max-w-[250px] truncate" title={t.description ?? ""}>
         {t.description}
         {t.is_split && (
-          <Badge variant="outline" className="ml-2 text-xs">
-            Split
+          <Badge
+            variant="outline"
+            className={cn(
+              "ml-2 text-xs",
+              !isBalanced && "border-amber-300 text-amber-700"
+            )}
+          >
+            {!isBalanced && <AlertTriangle className="mr-1 h-3 w-3" />}
+            {isBalanced ? "Split" : "Split needs attention"}
           </Badge>
         )}
         {t.not_duplicate && (
@@ -444,13 +472,17 @@ function TransactionRow({
         {groupName}
       </td>
       <td className="p-3">
-        <CategorySelect
-          value={t.category_id}
-          onValueChange={onCategoryChange}
-          placeholder={lineItemName}
-          className="h-8 text-xs"
-          displayMode="lineItem"
-        />
+        {t.is_split ? (
+          <span className="text-xs text-muted-foreground">Multiple categories</span>
+        ) : (
+          <CategorySelect
+            value={t.category_id}
+            onValueChange={onCategoryChange}
+            placeholder={lineItemName}
+            className="h-8 text-xs"
+            displayMode="lineItem"
+          />
+        )}
       </td>
       <td className="p-3 text-muted-foreground text-xs">
         {t.accounts?.name ?? "—"}
@@ -471,7 +503,68 @@ function TransactionRow({
       <td className="p-3 text-center">
         <TransactionNoteDialog transaction={t} onSave={onNotesChange} />
       </td>
+      <td className="p-3 text-center">
+        <div className="flex items-center justify-center gap-1">
+          {t.is_split && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setExpanded((current) => !current)}
+              aria-label={expanded ? "Hide split allocations" : "Show split allocations"}
+              title={expanded ? "Hide allocations" : "Show allocations"}
+            >
+              <ChevronRight
+                className={cn("h-4 w-4 transition-transform", expanded && "rotate-90")}
+              />
+            </Button>
+          )}
+          <SplitTransactionDialog transaction={t} onSaved={onSplitChange} />
+        </div>
+      </td>
     </tr>
+    {t.is_split && expanded && (
+      <tr className="border-t bg-muted/20">
+        <td colSpan={10} className="px-4 py-3">
+          <div className="ml-10 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <Scissors className="h-3.5 w-3.5" />
+              Split allocations
+            </div>
+            {t.allocations.map((allocation) => (
+              <div
+                key={allocation.id}
+                className="grid gap-2 rounded-md border bg-background px-3 py-2 text-xs sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+              >
+                <span className="font-medium">
+                  {allocation.budget_categories
+                    ? `${allocation.budget_categories.group_name}: ${allocation.budget_categories.line_item_name}`
+                    : "Unknown category"}
+                </span>
+                <span className="truncate text-muted-foreground" title={allocation.description ?? ""}>
+                  {allocation.description || t.description}
+                </span>
+                <span
+                  className={cn(
+                    "text-right font-medium tabular-nums",
+                    allocation.amount < 0 ? "text-red-500" : "text-emerald-600"
+                  )}
+                >
+                  {allocation.amount < 0 ? "-" : "+"}
+                  {formatCurrency(allocation.amount)}
+                </span>
+              </div>
+            ))}
+            {!isBalanced && (
+              <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                Allocations total {formatCurrency(allocationCents / 100)} but the bank transaction is {formatCurrency(parentCents / 100)}. Edit the split to rebalance it.
+              </div>
+            )}
+          </div>
+        </td>
+      </tr>
+    )}
+    </>
   );
 }
 

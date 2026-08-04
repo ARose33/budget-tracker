@@ -50,28 +50,28 @@ async function getSpendingByCategoryMonth(
   const startDate = start.toISOString().slice(0, 10);
 
   const { data, error } = await supabase
-    .from("transactions")
-    .select(
-      `
-      date,
-      amount,
-      budget_categories!inner(group_name, line_item_name, category_type)
-    `
-    )
+    .from("effective_transactions")
+    .select("date, amount, category_id")
     .eq("user_id", userId)
-    .is("parent_id", null)
-    .or("external_status.is.null,external_status.neq.removed")
     .lt("amount", 0)
     .gte("date", startDate)
-    .ilike("budget_categories.category_type", "expense");
 
   if (error) throw error;
 
+  const { data: categories, error: categoryError } = await supabase
+    .from("budget_categories")
+    .select("id, group_name, line_item_name, category_type")
+    .eq("user_id", userId)
+    .ilike("category_type", "expense");
+
+  if (categoryError) throw categoryError;
+  const categoriesById = new Map((categories ?? []).map((category) => [category.id, category]));
+
   const totals = new Map<string, SpendingByMonth>();
   for (const transaction of data ?? []) {
-    const category = Array.isArray(transaction.budget_categories)
-      ? transaction.budget_categories[0]
-      : transaction.budget_categories;
+    const category = transaction.category_id
+      ? categoriesById.get(transaction.category_id)
+      : null;
     if (!category) continue;
 
     const date = new Date(`${transaction.date}T00:00:00`);
