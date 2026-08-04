@@ -866,6 +866,595 @@ export type Database = {
         }
         Relationships: []
       }
+      pwm_accounts: {
+        Row: {
+          available_balance: number | null
+          balance: number
+          connection_id: string | null
+          created_at: string
+          currency: string
+          id: string
+          institution_name: string | null
+          is_active: boolean
+          last_synced_at: string | null
+          mask: string | null
+          name: string
+          official_name: string | null
+          provider_account_id: string | null
+          subtype: string | null
+          tax_bucket: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          available_balance?: number | null
+          balance?: number
+          connection_id?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          institution_name?: string | null
+          is_active?: boolean
+          last_synced_at?: string | null
+          mask?: string | null
+          name: string
+          official_name?: string | null
+          provider_account_id?: string | null
+          subtype?: string | null
+          tax_bucket?: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          available_balance?: number | null
+          balance?: number
+          connection_id?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          institution_name?: string | null
+          is_active?: boolean
+          last_synced_at?: string | null
+          mask?: string | null
+          name?: string
+          official_name?: string | null
+          provider_account_id?: string | null
+          subtype?: string | null
+          tax_bucket?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pwm_accounts_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "pwm_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pwm_audit_logs: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          message: string
+          metadata: Json
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          message: string
+          metadata?: Json
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          message?: string
+          metadata?: Json
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      pwm_balance_snapshots: {
+        Row: {
+          account_id: string
+          balance: number
+          created_at: string
+          id: string
+          snapshot_date: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          balance: number
+          created_at?: string
+          id?: string
+          snapshot_date: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          balance?: number
+          created_at?: string
+          id?: string
+          snapshot_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pwm_balance_snapshots_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "pwm_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pwm_benchmarks: {
+        Row: {
+          components: Json
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          components: Json
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          components?: Json
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pwm_cash_transactions: {
+        Row: {
+          account_id: string | null
+          amount: number
+          category: string | null
+          created_at: string
+          id: string
+          iso_currency_code: string
+          merchant_name: string | null
+          name: string
+          pending: boolean
+          provider_transaction_id: string | null
+          transaction_date: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          category?: string | null
+          created_at?: string
+          id?: string
+          iso_currency_code?: string
+          merchant_name?: string | null
+          name: string
+          pending?: boolean
+          provider_transaction_id?: string | null
+          transaction_date: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          category?: string | null
+          created_at?: string
+          id?: string
+          iso_currency_code?: string
+          merchant_name?: string | null
+          name?: string
+          pending?: boolean
+          provider_transaction_id?: string | null
+          transaction_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pwm_cash_transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "pwm_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pwm_connections: {
+        Row: {
+          access_token_ciphertext: string | null
+          created_at: string
+          id: string
+          institution_id: string | null
+          institution_name: string
+          last_error: string | null
+          last_successful_sync_at: string | null
+          provider: string
+          provider_item_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token_ciphertext?: string | null
+          created_at?: string
+          id?: string
+          institution_id?: string | null
+          institution_name: string
+          last_error?: string | null
+          last_successful_sync_at?: string | null
+          provider: string
+          provider_item_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token_ciphertext?: string | null
+          created_at?: string
+          id?: string
+          institution_id?: string | null
+          institution_name?: string
+          last_error?: string | null
+          last_successful_sync_at?: string | null
+          provider?: string
+          provider_item_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pwm_holdings: {
+        Row: {
+          account_id: string
+          as_of: string
+          cost_basis: number | null
+          created_at: string
+          id: string
+          price: number | null
+          quantity: number
+          security_id: string | null
+          tax_lots: Json
+          updated_at: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          account_id: string
+          as_of?: string
+          cost_basis?: number | null
+          created_at?: string
+          id?: string
+          price?: number | null
+          quantity: number
+          security_id?: string | null
+          tax_lots?: Json
+          updated_at?: string
+          user_id: string
+          value: number
+        }
+        Update: {
+          account_id?: string
+          as_of?: string
+          cost_basis?: number | null
+          created_at?: string
+          id?: string
+          price?: number | null
+          quantity?: number
+          security_id?: string | null
+          tax_lots?: Json
+          updated_at?: string
+          user_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pwm_holdings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "pwm_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pwm_holdings_security_id_fkey"
+            columns: ["security_id"]
+            isOneToOne: false
+            referencedRelation: "pwm_securities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pwm_investment_transactions: {
+        Row: {
+          account_id: string
+          amount: number
+          created_at: string
+          fees: number | null
+          id: string
+          name: string
+          price: number | null
+          provider_transaction_id: string | null
+          quantity: number | null
+          security_id: string | null
+          subtype: string | null
+          transaction_date: string
+          type: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          created_at?: string
+          fees?: number | null
+          id?: string
+          name: string
+          price?: number | null
+          provider_transaction_id?: string | null
+          quantity?: number | null
+          security_id?: string | null
+          subtype?: string | null
+          transaction_date: string
+          type?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          created_at?: string
+          fees?: number | null
+          id?: string
+          name?: string
+          price?: number | null
+          provider_transaction_id?: string | null
+          quantity?: number | null
+          security_id?: string | null
+          subtype?: string | null
+          transaction_date?: string
+          type?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pwm_investment_transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "pwm_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pwm_investment_transactions_security_id_fkey"
+            columns: ["security_id"]
+            isOneToOne: false
+            referencedRelation: "pwm_securities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pwm_liabilities: {
+        Row: {
+          account_id: string | null
+          balance: number
+          id: string
+          interest_rate: number | null
+          liability_type: string
+          metadata: Json
+          minimum_payment: number | null
+          next_payment_due_date: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          balance: number
+          id?: string
+          interest_rate?: number | null
+          liability_type: string
+          metadata?: Json
+          minimum_payment?: number | null
+          next_payment_due_date?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          balance?: number
+          id?: string
+          interest_rate?: number | null
+          liability_type?: string
+          metadata?: Json
+          minimum_payment?: number | null
+          next_payment_due_date?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pwm_liabilities_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "pwm_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pwm_price_points: {
+        Row: {
+          adjusted_close: number | null
+          close: number
+          created_at: string
+          dividend: number
+          id: string
+          price_date: string
+          source: string
+          split_factor: number
+          symbol: string
+          user_id: string
+        }
+        Insert: {
+          adjusted_close?: number | null
+          close: number
+          created_at?: string
+          dividend?: number
+          id?: string
+          price_date: string
+          source?: string
+          split_factor?: number
+          symbol: string
+          user_id: string
+        }
+        Update: {
+          adjusted_close?: number | null
+          close?: number
+          created_at?: string
+          dividend?: number
+          id?: string
+          price_date?: string
+          source?: string
+          split_factor?: number
+          symbol?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pwm_retirement_scenarios: {
+        Row: {
+          created_at: string
+          id: string
+          inputs: Json
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inputs: Json
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inputs?: Json
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pwm_securities: {
+        Row: {
+          asset_class: string
+          close_price: number | null
+          close_price_as_of: string | null
+          created_at: string
+          id: string
+          industry: string | null
+          name: string
+          provider_security_id: string | null
+          sector: string | null
+          ticker: string | null
+          type: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          asset_class?: string
+          close_price?: number | null
+          close_price_as_of?: string | null
+          created_at?: string
+          id?: string
+          industry?: string | null
+          name: string
+          provider_security_id?: string | null
+          sector?: string | null
+          ticker?: string | null
+          type?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          asset_class?: string
+          close_price?: number | null
+          close_price_as_of?: string | null
+          created_at?: string
+          id?: string
+          industry?: string | null
+          name?: string
+          provider_security_id?: string | null
+          sector?: string | null
+          ticker?: string | null
+          type?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pwm_sync_runs: {
+        Row: {
+          connection_id: string | null
+          finished_at: string | null
+          id: string
+          message: string | null
+          metadata: Json
+          started_at: string
+          status: string
+          trigger: string
+          user_id: string
+        }
+        Insert: {
+          connection_id?: string | null
+          finished_at?: string | null
+          id?: string
+          message?: string | null
+          metadata?: Json
+          started_at?: string
+          status: string
+          trigger: string
+          user_id: string
+        }
+        Update: {
+          connection_id?: string | null
+          finished_at?: string | null
+          id?: string
+          message?: string | null
+          metadata?: Json
+          started_at?: string
+          status?: string
+          trigger?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pwm_sync_runs_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "pwm_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rei_documents: {
         Row: {
           extracted_summary: string | null
@@ -1727,6 +2316,8 @@ export type Database = {
           alert_sender_email: string | null
           alert_subject_keywords: string | null
           created_at: string | null
+          currency: string | null
+          current_balance: number | null
           id: string
           institution_name: string
           investment_strategy: string | null
@@ -1734,6 +2325,7 @@ export type Database = {
           is_asset: boolean
           last_four_digits: string | null
           notes: string | null
+          plaid_item_id: string | null
           updated_at: string | null
           user_id: string
         }
@@ -1743,6 +2335,8 @@ export type Database = {
           alert_sender_email?: string | null
           alert_subject_keywords?: string | null
           created_at?: string | null
+          currency?: string | null
+          current_balance?: number | null
           id?: string
           institution_name: string
           investment_strategy?: string | null
@@ -1750,6 +2344,7 @@ export type Database = {
           is_asset: boolean
           last_four_digits?: string | null
           notes?: string | null
+          plaid_item_id?: string | null
           updated_at?: string | null
           user_id?: string
         }
@@ -1759,6 +2354,8 @@ export type Database = {
           alert_sender_email?: string | null
           alert_subject_keywords?: string | null
           created_at?: string | null
+          currency?: string | null
+          current_balance?: number | null
           id?: string
           institution_name?: string
           investment_strategy?: string | null
@@ -1766,10 +2363,19 @@ export type Database = {
           is_asset?: boolean
           last_four_digits?: string | null
           notes?: string | null
+          plaid_item_id?: string | null
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "wm_accounts_plaid_item_id_fkey"
+            columns: ["plaid_item_id"]
+            isOneToOne: false
+            referencedRelation: "plaid_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wm_balance_snapshots: {
         Row: {
@@ -1812,6 +2418,110 @@ export type Database = {
           },
         ]
       }
+      wm_benchmarks: {
+        Row: {
+          close_price: number
+          date: string
+          id: string
+          name: string | null
+          symbol: string
+        }
+        Insert: {
+          close_price: number
+          date: string
+          id?: string
+          name?: string | null
+          symbol: string
+        }
+        Update: {
+          close_price?: number
+          date?: string
+          id?: string
+          name?: string | null
+          symbol?: string
+        }
+        Relationships: []
+      }
+      wm_goals: {
+        Row: {
+          category: string
+          created_at: string | null
+          current_amount: number | null
+          id: string
+          monthly_contribution: number | null
+          name: string
+          target_amount: number
+          target_date: string | null
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string | null
+          current_amount?: number | null
+          id?: string
+          monthly_contribution?: number | null
+          name: string
+          target_amount: number
+          target_date?: string | null
+          user_id?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          current_amount?: number | null
+          id?: string
+          monthly_contribution?: number | null
+          name?: string
+          target_amount?: number
+          target_date?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wm_holdings: {
+        Row: {
+          account_id: string
+          asset_class: string
+          cost_basis: number | null
+          current_price: number | null
+          id: string
+          last_updated: string | null
+          name: string | null
+          quantity: number
+          symbol: string
+        }
+        Insert: {
+          account_id: string
+          asset_class?: string
+          cost_basis?: number | null
+          current_price?: number | null
+          id?: string
+          last_updated?: string | null
+          name?: string | null
+          quantity?: number
+          symbol: string
+        }
+        Update: {
+          account_id?: string
+          asset_class?: string
+          cost_basis?: number | null
+          current_price?: number | null
+          id?: string
+          last_updated?: string | null
+          name?: string | null
+          quantity?: number
+          symbol?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wm_holdings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "wm_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wm_net_worth_snapshots: {
         Row: {
           created_at: string | null
@@ -1838,6 +2548,48 @@ export type Database = {
           snapshot_date?: string
           total_assets?: number
           total_liabilities?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wm_plaid_costs: {
+        Row: {
+          api_calls: number | null
+          api_cost: number | null
+          billing_month: string
+          created_at: string | null
+          id: string
+          institution: string | null
+          item_cost: number | null
+          plaid_item_id: string
+          product: string | null
+          total_cost: number | null
+          user_id: string
+        }
+        Insert: {
+          api_calls?: number | null
+          api_cost?: number | null
+          billing_month: string
+          created_at?: string | null
+          id?: string
+          institution?: string | null
+          item_cost?: number | null
+          plaid_item_id: string
+          product?: string | null
+          total_cost?: number | null
+          user_id?: string
+        }
+        Update: {
+          api_calls?: number | null
+          api_cost?: number | null
+          billing_month?: string
+          created_at?: string | null
+          id?: string
+          institution?: string | null
+          item_cost?: number | null
+          plaid_item_id?: string
+          product?: string | null
+          total_cost?: number | null
           user_id?: string
         }
         Relationships: []
@@ -1888,10 +2640,12 @@ export type Database = {
       }
       wm_retirement_inputs: {
         Row: {
+          annual_spending: number | null
           current_age: number
           expected_return_rate: number
           id: string
           inflation_rate: number
+          life_expectancy: number | null
           monthly_contribution: number
           retirement_duration_years: number
           social_security_benefit: number
@@ -1901,10 +2655,12 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          annual_spending?: number | null
           current_age: number
           expected_return_rate: number
           id?: string
           inflation_rate: number
+          life_expectancy?: number | null
           monthly_contribution: number
           retirement_duration_years: number
           social_security_benefit?: number
@@ -1914,10 +2670,12 @@ export type Database = {
           user_id?: string
         }
         Update: {
+          annual_spending?: number | null
           current_age?: number
           expected_return_rate?: number
           id?: string
           inflation_rate?: number
+          life_expectancy?: number | null
           monthly_contribution?: number
           retirement_duration_years?: number
           social_security_benefit?: number
@@ -1925,6 +2683,39 @@ export type Database = {
           target_retirement_age?: number
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      wm_tax_contributions: {
+        Row: {
+          account_type: string
+          annual_limit: number
+          contributed: number | null
+          created_at: string | null
+          employer_match: number | null
+          id: string
+          user_id: string
+          year: number
+        }
+        Insert: {
+          account_type: string
+          annual_limit: number
+          contributed?: number | null
+          created_at?: string | null
+          employer_match?: number | null
+          id?: string
+          user_id?: string
+          year: number
+        }
+        Update: {
+          account_type?: string
+          annual_limit?: number
+          contributed?: number | null
+          created_at?: string | null
+          employer_match?: number | null
+          id?: string
+          user_id?: string
+          year?: number
         }
         Relationships: []
       }
@@ -1984,6 +2775,47 @@ export type Database = {
           },
         ]
       }
+      wm_transactions: {
+        Row: {
+          account_id: string
+          amount: number
+          created_at: string | null
+          date: string
+          id: string
+          notes: string | null
+          symbol: string | null
+          type: string
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          created_at?: string | null
+          date?: string
+          id?: string
+          notes?: string | null
+          symbol?: string | null
+          type: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          created_at?: string | null
+          date?: string
+          id?: string
+          notes?: string | null
+          symbol?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wm_transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "wm_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wm_unmatched_emails: {
         Row: {
           body_preview: string | null
@@ -2033,6 +2865,25 @@ export type Database = {
       }
     }
     Views: {
+      effective_transactions: {
+        Row: {
+          account_id: string | null
+          amount: number | null
+          category_id: string | null
+          created_at: string | null
+          date: string | null
+          description: string | null
+          external_status: string | null
+          id: string | null
+          is_split: boolean | null
+          parent_id: string | null
+          source: string | null
+          status: string | null
+          upload_source: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       monthly_category_stats: {
         Row: {
           account_id: string | null
@@ -2169,6 +3020,11 @@ export type Database = {
           year_num: number
         }[]
       }
+      save_transaction_split: {
+        Args: { p_allocations: Json; p_parent_id: string }
+        Returns: undefined
+      }
+      unsplit_transaction: { Args: { p_parent_id: string }; Returns: undefined }
     }
     Enums: {
       hub_comp_type: "sale" | "rental" | "airbnb"
@@ -2180,6 +3036,8 @@ export type Database = {
         | "offer_made"
         | "under_contract"
         | "closed"
+        | "viewing_scheduled"
+        | "viewed"
       hub_property_type:
         | "house"
         | "condo"
@@ -2324,6 +3182,8 @@ export const Constants = {
         "offer_made",
         "under_contract",
         "closed",
+        "viewing_scheduled",
+        "viewed",
       ],
       hub_property_type: [
         "house",

@@ -17,6 +17,7 @@ export interface Transaction {
   created_at: string | null;
   plaid_transaction_id: string | null;
   not_duplicate: boolean;
+  allocations: SplitAllocation[];
   budget_categories?: {
     group_name: string;
     line_item_name: string;
@@ -25,6 +26,18 @@ export interface Transaction {
   accounts?: {
     name: string;
     institution: string;
+  } | null;
+}
+
+export interface SplitAllocation {
+  id: string;
+  amount: number;
+  category_id: string;
+  description: string | null;
+  budget_categories?: {
+    group_name: string;
+    line_item_name: string;
+    category_type: string;
   } | null;
 }
 
@@ -60,6 +73,41 @@ export async function getTransactions(
   sort: TransactionSort = { field: "date", direction: "desc" }
 ): Promise<{ data: Transaction[]; count: number }> {
   const userId = await getCurrentUserId();
+  let categoryIds: string[] | null = null;
+
+  if (filters.categoryId) {
+    categoryIds = [filters.categoryId];
+  } else if (filters.categoryGroup) {
+    const { data: categories, error: categoryError } = await supabase
+      .from("budget_categories")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("group_name", filters.categoryGroup);
+
+    if (categoryError) throw categoryError;
+    categoryIds = categories?.map((category) => category.id) ?? [];
+    if (categoryIds.length === 0) return { data: [], count: 0 };
+  }
+
+  let splitParentIds: string[] = [];
+  if (categoryIds) {
+    const { data: allocationParents, error: allocationError } = await supabase
+      .from("transactions")
+      .select("parent_id")
+      .eq("user_id", userId)
+      .not("parent_id", "is", null)
+      .in("category_id", categoryIds);
+
+    if (allocationError) throw allocationError;
+    splitParentIds = Array.from(
+      new Set(
+        (allocationParents ?? [])
+          .map((row) => row.parent_id)
+          .filter((id): id is string => Boolean(id))
+      )
+    );
+  }
+
   let query = supabase
     .from("transactions")
     .select(
@@ -80,24 +128,18 @@ export async function getTransactions(
     query = query.ilike("description", `%${filters.search}%`);
   }
   if (filters.uncategorizedOnly) {
-    query = query.is("category_id", null);
-  } else if (filters.categoryId) {
-    query = query.eq("category_id", filters.categoryId);
-  } else if (filters.categoryGroup) {
-    const { data: categories, error: categoryError } = await supabase
-      .from("budget_categories")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("group_name", filters.categoryGroup);
-
-    if (categoryError) throw categoryError;
-
-    const categoryIds = categories?.map((category) => category.id) ?? [];
-    if (categoryIds.length === 0) {
-      return { data: [], count: 0 };
+    query = query
+      .is("category_id", null)
+      .or("is_split.is.null,is_split.eq.false");
+  } else if (categoryIds) {
+    const categoryList = categoryIds.join(",");
+    if (splitParentIds.length > 0) {
+      query = query.or(
+        `category_id.in.(${categoryList}),id.in.(${splitParentIds.join(",")})`
+      );
+    } else {
+      query = query.in("category_id", categoryIds);
     }
-
-    query = query.in("category_id", categoryIds);
   }
   if (filters.accountId) {
     query = query.eq("account_id", filters.accountId);
@@ -133,16 +175,58 @@ export async function getTransactions(
   const { data, error, count } = await query;
   if (error) throw error;
 
-  const transactions = (data as Omit<Transaction, "notes">[]) ?? [];
-  const notes = await getTransactionNotes(transactions.map((transaction) => transaction.id));
+  const transactions =
+    (data as Omit<Transaction, "notes" | "allocations">[]) ?? [];
+  const transactionIds = transactions.map((transaction) => transaction.id);
+  const [notes, allocations] = await Promise.all([
+    getTransactionNotes(transactionIds),
+    getSplitAllocations(transactionIds, userId),
+  ]);
 
   return {
     data: transactions.map((transaction) => ({
       ...transaction,
       notes: notes[transaction.id] ?? null,
+      allocations: allocations[transaction.id] ?? [],
     })),
     count: count ?? 0,
   };
+}
+
+async function getSplitAllocations(transactionIds: string[], userId: string) {
+  if (transactionIds.length === 0) {
+    return {} as Record<string, SplitAllocation[]>;
+  }
+
+  const { data, error } = await supabase
+    .from("transactions")
+    .select(
+      `
+      id, parent_id, amount, category_id, description,
+      budget_categories(group_name, line_item_name, category_type)
+    `
+    )
+    .eq("user_id", userId)
+    .in("parent_id", transactionIds)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+
+  const grouped: Record<string, SplitAllocation[]> = {};
+  for (const allocation of data ?? []) {
+    if (!allocation.parent_id || !allocation.category_id) continue;
+    const relation = Array.isArray(allocation.budget_categories)
+      ? allocation.budget_categories[0]
+      : allocation.budget_categories;
+    (grouped[allocation.parent_id] ??= []).push({
+      id: allocation.id,
+      amount: Number(allocation.amount),
+      category_id: allocation.category_id,
+      description: allocation.description,
+      budget_categories: relation ?? null,
+    });
+  }
+  return grouped;
 }
 
 export async function updateTransactionCategory(
@@ -290,40 +374,18 @@ export async function markNotDuplicate(
 
 export async function splitTransaction(
   parentId: string,
-  children: { category_id: string; amount: number; description?: string }[]
+  allocations: { category_id: string; amount: number; description?: string }[]
 ) {
-  const userId = await getCurrentUserId();
-  // Get parent transaction
-  const { data: parent, error: parentError } = await supabase
-    .from("transactions")
-    .select("*")
-    .eq("id", parentId)
-    .eq("user_id", userId)
-    .single();
+  const { error } = await supabase.rpc("save_transaction_split", {
+    p_parent_id: parentId,
+    p_allocations: allocations,
+  });
+  if (error) throw error;
+}
 
-  if (parentError) throw parentError;
-
-  // Mark parent as split
-  await supabase
-    .from("transactions")
-    .update({ is_split: true })
-    .eq("id", parentId)
-    .eq("user_id", userId);
-
-  // Insert children
-  const childRows = children.map((c) => ({
-    date: parent.date,
-    description: c.description || parent.description,
-    amount: c.amount,
-    category_id: c.category_id,
-    account_id: parent.account_id,
-    status: parent.status,
-    parent_id: parentId,
-    is_split: true,
-    source: parent.source,
-    user_id: userId,
-  }));
-
-  const { error } = await supabase.from("transactions").insert(childRows);
+export async function unsplitTransaction(parentId: string) {
+  const { error } = await supabase.rpc("unsplit_transaction", {
+    p_parent_id: parentId,
+  });
   if (error) throw error;
 }
