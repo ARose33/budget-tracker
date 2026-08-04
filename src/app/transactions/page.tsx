@@ -22,8 +22,6 @@ import {
 import { TransactionFiltersBar } from "@/components/transactions/transaction-filters";
 import { BulkActionsBar } from "@/components/transactions/bulk-actions-bar";
 import { CategorySelect } from "@/components/transactions/category-select";
-import { CsvImportDialog } from "@/components/transactions/csv-import-dialog";
-import { PdfStatementImportDialog } from "@/components/transactions/pdf-statement-import-dialog";
 import { SplitTransactionDialog } from "@/components/transactions/split-transaction-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -40,8 +38,6 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
-  Upload,
-  FileText,
   Loader2,
   ArrowUp,
   ArrowDown,
@@ -71,8 +67,6 @@ export default function TransactionsPage() {
     direction: "desc",
   });
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [csvOpen, setCsvOpen] = useState(false);
-  const [pdfOpen, setPdfOpen] = useState(false);
   const pageSize = 50;
 
   const { data, isLoading } = useQuery({
@@ -213,18 +207,8 @@ export default function TransactionsPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-4">
-      <div className="flex items-center justify-between">
+      <div>
         <h2 className="text-2xl font-bold">Transactions</h2>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setCsvOpen(true)}>
-            <Upload className="h-4 w-4 mr-2" />
-            Import CSV
-          </Button>
-          <Button onClick={() => setPdfOpen(true)}>
-            <FileText className="h-4 w-4 mr-2" />
-            Import statements
-          </Button>
-        </div>
       </div>
 
       <TransactionFiltersBar
@@ -336,17 +320,6 @@ export default function TransactionsPage() {
           </div>
         </>
       )}
-
-      <CsvImportDialog
-        open={csvOpen}
-        onOpenChange={setCsvOpen}
-        onComplete={invalidate}
-      />
-      <PdfStatementImportDialog
-        open={pdfOpen}
-        onOpenChange={setPdfOpen}
-        onComplete={invalidate}
-      />
     </div>
   );
 }
