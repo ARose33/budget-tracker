@@ -29,20 +29,12 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Deployment
 
-This repository is linked to the production Vercel project through
-`.vercel/project.json`. Deployments must use the checked-in helper:
+Production deployments are GitHub-driven. Validate the code, commit the intended
+changes, and push them to `origin/main`. Vercel automatically deploys the
+connected project after a successful push.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/deploy-production.ps1
-```
-
-The helper verifies Vercel CLI authentication, builds the application, deploys
-to production, and confirms that the production URL responds. A Git push alone
-must not be treated as a completed deployment.
-
-If a release introduces a Supabase schema migration, apply and verify that
-migration before running the Vercel helper. Never release frontend code that
-queries a production column that has not been confirmed through the Supabase
-API.
+Do not use the Vercel CLI or attempt browser-based Vercel authentication. If a
+release introduces a Supabase schema migration, apply and verify that migration
+before pushing application code that depends on it.
