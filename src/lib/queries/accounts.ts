@@ -26,6 +26,8 @@ export interface BankConnectionStatus {
   last_synced_at: string | null;
   provider: string;
   status: string;
+  error_code: string | null;
+  error_message: string | null;
 }
 
 export async function getAccounts(): Promise<Account[]> {
@@ -50,7 +52,9 @@ export async function getBankConnections(): Promise<BankConnectionStatus[]> {
   const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from("bank_connections")
-    .select("id, institution_name, institution_id, last_synced_at, provider, status")
+    .select(
+      "id, institution_name, institution_id, last_synced_at, provider, status, error_code, error_message"
+    )
     .eq("user_id", userId)
     .eq("provider", "plaid")
     .order("institution_name");
