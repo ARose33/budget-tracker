@@ -113,6 +113,7 @@ export function PlaidConnectButton() {
         invalidate();
         setLinkToken(null);
       } catch (error) {
+        invalidate();
         toast.error(
           error instanceof Error ? error.message : "Failed to save Plaid item"
         );

@@ -5,6 +5,7 @@ import {
   exchangePlaidPublicToken,
   getPlaidAccounts,
   getPlaidItem,
+  normalizePlaidError,
   removePlaidItem,
   syncPlaidTransactions,
 } from "@/lib/plaid/client";
@@ -23,12 +24,20 @@ interface StoredConnection {
   user_id: string;
 }
 
-interface SyncSummary {
+interface ConnectionFailure {
+  connectionId: string;
+  institutionName: string;
+  errorCode: string | null;
+  message: string;
+}
+
+export interface SyncSummary {
   connections: number;
   accounts: number;
   transactions: number;
   duplicatesLinked: number;
   removed: number;
+  failures: ConnectionFailure[];
 }
 
 interface LinkMetadata {
@@ -352,15 +361,16 @@ async function syncAccountsForConnection(connection: StoredConnection) {
 
 export async function syncPlaidConnection(connection: StoredConnection) {
   const supabase = createServiceRoleClient();
-  const accountMap = await syncAccountsForConnection(connection);
   let cursor = connection.sync_cursor;
   const originalCursor = cursor;
-  let hasMore = true;
-  let transactionCount = 0;
-  let duplicatesLinked = 0;
-  let removedCount = 0;
 
   try {
+    const accountMap = await syncAccountsForConnection(connection);
+    let hasMore = true;
+    let transactionCount = 0;
+    let duplicatesLinked = 0;
+    let removedCount = 0;
+
     while (hasMore) {
       const data = await syncPlaidTransactions(connection.access_token, cursor);
       if (data.transactions_update_status === "NOT_READY") {
@@ -394,11 +404,35 @@ export async function syncPlaidConnection(connection: StoredConnection) {
       cursor = data.next_cursor;
       hasMore = data.has_more;
     }
+
+    const { error } = await supabase
+      .from("bank_connections")
+      .update({
+        last_synced_at: new Date().toISOString(),
+        sync_cursor: cursor,
+        status: "active",
+        error_code: null,
+        error_message: null,
+      })
+      .eq("id", connection.id);
+
+    if (error) throw error;
+
+    return {
+      accounts: accountMap.size,
+      transactions: transactionCount,
+      duplicatesLinked,
+      removed: removedCount,
+    };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const plaidError = normalizePlaidError(error);
+    const message =
+      plaidError?.message ??
+      (error instanceof Error ? error.message : String(error));
     await supabase
       .from("bank_connections")
       .update({
+        error_code: plaidError?.errorCode ?? null,
         error_message: message,
         status: "error",
         sync_cursor: originalCursor,
@@ -406,26 +440,6 @@ export async function syncPlaidConnection(connection: StoredConnection) {
       .eq("id", connection.id);
     throw error;
   }
-
-  const { error } = await supabase
-    .from("bank_connections")
-    .update({
-      last_synced_at: new Date().toISOString(),
-      sync_cursor: cursor,
-      status: "active",
-      error_code: null,
-      error_message: null,
-    })
-    .eq("id", connection.id);
-
-  if (error) throw error;
-
-  return {
-    accounts: accountMap.size,
-    transactions: transactionCount,
-    duplicatesLinked,
-    removed: removedCount,
-  };
 }
 
 export async function saveAndSyncPlaidItem(
@@ -523,6 +537,22 @@ export async function saveAndSyncPlaidItem(
   return {
     connections: 1,
     ...summary,
+    failures: [],
+  };
+}
+
+function connectionFailure(
+  connection: StoredConnection,
+  error: unknown
+): ConnectionFailure {
+  const plaidError = normalizePlaidError(error);
+  return {
+    connectionId: connection.id,
+    institutionName: connection.institution_name ?? "Plaid connection",
+    errorCode: plaidError?.errorCode ?? null,
+    message:
+      plaidError?.message ??
+      (error instanceof Error ? error.message : String(error)),
   };
 }
 
@@ -547,6 +577,7 @@ export async function syncStoredPlaidConnectionsForUser(
       transactions: 0,
       duplicatesLinked: 0,
       removed: 0,
+      failures: [],
     };
   }
 
@@ -556,18 +587,24 @@ export async function syncStoredPlaidConnectionsForUser(
     transactions: 0,
     duplicatesLinked: 0,
     removed: 0,
+    failures: [],
   };
 
   for (const connection of connections) {
     if (!connection.user_id) continue;
-    const result = await syncPlaidConnection({
+    const storedConnection = {
       ...connection,
       user_id: connection.user_id,
-    });
-    summary.accounts += result.accounts;
-    summary.transactions += result.transactions;
-    summary.duplicatesLinked += result.duplicatesLinked;
-    summary.removed += result.removed;
+    };
+    try {
+      const result = await syncPlaidConnection(storedConnection);
+      summary.accounts += result.accounts;
+      summary.transactions += result.transactions;
+      summary.duplicatesLinked += result.duplicatesLinked;
+      summary.removed += result.removed;
+    } catch (error) {
+      summary.failures.push(connectionFailure(storedConnection, error));
+    }
   }
 
   return summary;
@@ -592,6 +629,7 @@ export async function syncAllStoredPlaidConnections(): Promise<SyncSummary> {
       transactions: 0,
       duplicatesLinked: 0,
       removed: 0,
+      failures: [],
     };
   }
 
@@ -601,18 +639,24 @@ export async function syncAllStoredPlaidConnections(): Promise<SyncSummary> {
     transactions: 0,
     duplicatesLinked: 0,
     removed: 0,
+    failures: [],
   };
 
   for (const connection of connections) {
     if (!connection.user_id) continue;
-    const result = await syncPlaidConnection({
+    const storedConnection = {
       ...connection,
       user_id: connection.user_id,
-    });
-    summary.accounts += result.accounts;
-    summary.transactions += result.transactions;
-    summary.duplicatesLinked += result.duplicatesLinked;
-    summary.removed += result.removed;
+    };
+    try {
+      const result = await syncPlaidConnection(storedConnection);
+      summary.accounts += result.accounts;
+      summary.transactions += result.transactions;
+      summary.duplicatesLinked += result.duplicatesLinked;
+      summary.removed += result.removed;
+    } catch (error) {
+      summary.failures.push(connectionFailure(storedConnection, error));
+    }
   }
 
   return summary;
@@ -639,6 +683,32 @@ export async function syncPlaidConnectionByItemId(itemId: string) {
     .from("bank_connections")
     .update({ last_webhook_at: new Date().toISOString() })
     .eq("id", connection.id);
+
+  return syncPlaidConnection({
+    ...connection,
+    user_id: connection.user_id,
+  });
+}
+
+export async function syncPlaidConnectionByIdForUser(
+  connectionId: string,
+  userId: string
+) {
+  const supabase = createServiceRoleClient();
+  const { data: connection, error } = await supabase
+    .from("bank_connections")
+    .select(
+      "id, access_token, provider_enrollment_id, institution_name, institution_id, last_synced_at, sync_cursor, user_id"
+    )
+    .eq("id", connectionId)
+    .eq("provider", PROVIDER)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!connection?.user_id) {
+    throw new Error("Plaid connection not found");
+  }
 
   return syncPlaidConnection({
     ...connection,

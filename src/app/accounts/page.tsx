@@ -63,6 +63,10 @@ export default function AccountsPage() {
         accounts?: number;
         transactions?: number;
         duplicatesLinked?: number;
+        failures?: Array<{
+          institutionName: string;
+          message: string;
+        }>;
         error?: string;
       };
       if (!response.ok) {
@@ -71,15 +75,27 @@ export default function AccountsPage() {
       return json;
     },
     onSuccess: (summary) => {
+      queryClient.invalidateQueries({ queryKey: ["bank-connections"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["budget"] });
+
+      if (summary.failures && summary.failures.length > 0) {
+        const failedBanks = summary.failures
+          .map((failure) => failure.institutionName)
+          .join(", ");
+        toast.warning(
+          `Synced available banks. Reconnect ${failedBanks} to resume syncing.`
+        );
+        return;
+      }
+
       const linked = summary.duplicatesLinked ?? 0;
       const duplicateText =
         linked > 0 ? ` and linked ${linked} existing duplicates` : "";
       toast.success(
         `Plaid synced ${summary.accounts ?? 0} accounts and ${summary.transactions ?? 0} transactions${duplicateText}`
       );
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["budget"] });
     },
     onError: (error: Error) => {
       toast.error(error.message);
