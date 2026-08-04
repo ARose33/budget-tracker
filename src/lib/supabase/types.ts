@@ -3003,6 +3003,13 @@ export type Database = {
           year_num: number
         }[]
       }
+      get_monthly_uncategorized_summary: {
+        Args: { p_month: number; p_year: number }
+        Returns: {
+          total_amount: number
+          transaction_count: number
+        }[]
+      }
       get_category_rollover: {
         Args: {
           target_category_uuid: string

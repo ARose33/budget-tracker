@@ -28,6 +28,12 @@ interface TransactionFiltersBarProps {
   uncategorizedCount?: number;
 }
 
+function getCategoryType(value: string | null | undefined) {
+  if (value?.toLowerCase() === "income") return "Income" as const;
+  if (value?.toLowerCase() === "expense") return "Expense" as const;
+  return undefined;
+}
+
 export function TransactionFiltersBar({
   filters,
   onChange,
@@ -42,27 +48,37 @@ export function TransactionFiltersBar({
     queryFn: getAccounts,
   });
 
+  const typeCategories = useMemo(
+    () =>
+      filters.categoryType
+        ? categories.filter(
+            (category) => getCategoryType(category.category_type) === filters.categoryType
+          )
+        : categories,
+    [categories, filters.categoryType]
+  );
+
   const groups = useMemo(
     () =>
-      [...new Set(categories.map((category) => category.group_name))].sort(
+      [...new Set(typeCategories.map((category) => category.group_name))].sort(
         (a, b) => a.localeCompare(b)
       ),
-    [categories]
+    [typeCategories]
   );
 
   const lineItemCategories = useMemo(() => {
     const filtered = filters.categoryGroup
-      ? categories.filter(
+      ? typeCategories.filter(
           (category) => category.group_name === filters.categoryGroup
         )
-      : categories;
+      : typeCategories;
 
     return [...filtered].sort((a, b) => {
       const groupCompare = a.group_name.localeCompare(b.group_name);
       if (groupCompare !== 0) return groupCompare;
       return a.line_item_name.localeCompare(b.line_item_name);
     });
-  }, [categories, filters.categoryGroup]);
+  }, [typeCategories, filters.categoryGroup]);
 
   const selectedLineItem = categories.find(
     (category) => category.id === filters.categoryId
@@ -70,6 +86,7 @@ export function TransactionFiltersBar({
 
   const hasFilters =
     filters.search ||
+    filters.categoryType ||
     filters.categoryGroup ||
     filters.categoryId ||
     filters.accountId ||
@@ -78,12 +95,41 @@ export function TransactionFiltersBar({
     filters.dateFrom ||
     filters.dateTo;
 
+  const handleTypeChange = (
+    categoryType: TransactionFilters["categoryType"]
+  ) => {
+    const selectedCategory = categories.find(
+      (category) => category.id === filters.categoryId
+    );
+    const categoryMatches =
+      !categoryType ||
+      getCategoryType(selectedCategory?.category_type) === categoryType;
+    const groupExists =
+      !filters.categoryGroup ||
+      categories.some(
+        (category) =>
+          category.group_name === filters.categoryGroup &&
+          (!categoryType || getCategoryType(category.category_type) === categoryType)
+      );
+
+    onChange({
+      ...filters,
+      categoryType,
+      categoryGroup: groupExists ? filters.categoryGroup : undefined,
+      categoryId: categoryMatches ? filters.categoryId : undefined,
+      uncategorizedOnly: false,
+    });
+  };
+
   const handleGroupChange = (groupName: string | undefined) => {
     const selectedCategory = categories.find(
       (category) => category.id === filters.categoryId
     );
     const shouldKeepLineItem =
-      groupName && selectedCategory?.group_name === groupName;
+      groupName &&
+      selectedCategory?.group_name === groupName &&
+      (!filters.categoryType ||
+        getCategoryType(selectedCategory.category_type) === filters.categoryType);
 
     onChange({
       ...filters,
@@ -98,6 +144,8 @@ export function TransactionFiltersBar({
 
     onChange({
       ...filters,
+      categoryType:
+        getCategoryType(category?.category_type) ?? filters.categoryType,
       categoryGroup: category?.group_name ?? filters.categoryGroup,
       categoryId,
       uncategorizedOnly: false,
@@ -110,6 +158,7 @@ export function TransactionFiltersBar({
     onChange({
       ...filters,
       uncategorizedOnly: nextUncategorizedOnly,
+      categoryType: nextUncategorizedOnly ? undefined : filters.categoryType,
       categoryGroup: nextUncategorizedOnly ? undefined : filters.categoryGroup,
       categoryId: nextUncategorizedOnly ? undefined : filters.categoryId,
     });
@@ -127,6 +176,10 @@ export function TransactionFiltersBar({
             className="pl-9"
           />
         </div>
+        <CategoryTypeFilter
+          value={filters.categoryType}
+          onValueChange={handleTypeChange}
+        />
         <CategoryGroupFilter
           groups={groups}
           value={filters.categoryGroup}
@@ -184,6 +237,66 @@ export function TransactionFiltersBar({
         )}
       </div>
     </div>
+  );
+}
+
+function CategoryTypeFilter({
+  value,
+  onValueChange,
+}: {
+  value?: "Income" | "Expense";
+  onValueChange: (value: "Income" | "Expense" | undefined) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const selectValue = (nextValue: "Income" | "Expense" | undefined) => {
+    onValueChange(nextValue);
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            className="w-[135px] justify-between font-normal"
+          />
+        }
+      >
+        <span>{value ?? "All types"}</span>
+        <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-(--anchor-width) p-0">
+        <Command loop>
+          <CommandList>
+            <CommandItem
+              value="All types"
+              onSelect={() => selectValue(undefined)}
+              data-checked={!value}
+            >
+              All types
+            </CommandItem>
+            <CommandItem
+              value="Income"
+              onSelect={() => selectValue("Income")}
+              data-checked={value === "Income"}
+            >
+              Income
+            </CommandItem>
+            <CommandItem
+              value="Expense"
+              onSelect={() => selectValue("Expense")}
+              data-checked={value === "Expense"}
+            >
+              Expense
+            </CommandItem>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 

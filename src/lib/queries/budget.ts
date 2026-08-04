@@ -22,6 +22,11 @@ export interface BudgetGroup {
   total_effective: number;
 }
 
+export interface MonthlyUncategorizedSummary {
+  count: number;
+  total: number;
+}
+
 export type BudgetCategoryType = "Income" | "Expense";
 
 interface CategoryInput {
@@ -176,6 +181,24 @@ export async function getBudgetWithRollover(
 
   if (error) throw error;
   return (data as BudgetLineItem[]) ?? [];
+}
+
+export async function getMonthlyUncategorizedSummary(
+  year: number,
+  month: number
+): Promise<MonthlyUncategorizedSummary> {
+  const { data, error } = await supabase.rpc("get_monthly_uncategorized_summary", {
+    p_year: year,
+    p_month: month,
+  });
+
+  if (error) throw error;
+  const summary = data?.[0];
+
+  return {
+    count: Number(summary?.transaction_count ?? 0),
+    total: Number(summary?.total_amount ?? 0),
+  };
 }
 
 export function groupBudgetItems(items: BudgetLineItem[]): BudgetGroup[] {

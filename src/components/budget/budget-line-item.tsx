@@ -1,8 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Pencil } from "lucide-react";
 import type { BudgetLineItem } from "@/lib/queries/budget";
 
 function formatCurrency(amount: number) {
@@ -16,10 +19,15 @@ function formatCurrency(amount: number) {
 
 interface BudgetLineItemRowProps {
   item: BudgetLineItem;
-  onClick?: () => void;
+  transactionsHref?: string;
+  onEdit?: () => void;
 }
 
-export function BudgetLineItemRow({ item, onClick }: BudgetLineItemRowProps) {
+export function BudgetLineItemRow({
+  item,
+  transactionsHref,
+  onEdit,
+}: BudgetLineItemRowProps) {
   const spent = Number(item.actual_spent);
   const effective = Number(item.effective_budget);
   const rollover = Number(item.rollover);
@@ -28,12 +36,8 @@ export function BudgetLineItemRow({ item, onClick }: BudgetLineItemRowProps) {
   const percentage = effective > 0 ? (spent / effective) * 100 : spent > 0 ? 100 : 0;
   const remaining = effective - spent;
 
-  return (
-    <div
-      className="flex items-center gap-4 py-2 px-3 rounded-md hover:bg-accent/50 cursor-pointer transition-colors"
-      onClick={onClick}
-    >
-      <div className="flex-1 min-w-0">
+  const content = (
+    <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between mb-1">
           <span className="text-sm font-medium truncate">
             {item.line_item_name}
@@ -82,7 +86,35 @@ export function BudgetLineItemRow({ item, onClick }: BudgetLineItemRowProps) {
             {remaining >= 0 ? formatCurrency(remaining) + " left" : formatCurrency(Math.abs(remaining)) + " over"}
           </span>
         </div>
-      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex items-center gap-2 rounded-md px-3 py-2 transition-colors hover:bg-accent/50">
+      {transactionsHref ? (
+        <Link
+          href={transactionsHref}
+          aria-label={`View transactions included in ${item.line_item_name}`}
+          className="min-w-0 flex-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {content}
+        </Link>
+      ) : (
+        content
+      )}
+      {onEdit && (
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          aria-label={`Edit ${item.line_item_name} subcategory`}
+          title={`Edit ${item.line_item_name}`}
+          onClick={onEdit}
+          className="shrink-0"
+        >
+          <Pencil />
+        </Button>
+      )}
     </div>
   );
 }
