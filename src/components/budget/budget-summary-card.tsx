@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown, Wallet, Target } from "lucide-react";
@@ -9,6 +10,7 @@ interface BudgetSummaryCardProps {
   amount: number;
   subtext?: string;
   variant?: "default" | "income" | "expense" | "net";
+  href?: string;
 }
 
 function formatCurrency(amount: number) {
@@ -60,6 +62,7 @@ export function BudgetSummaryCard({
   amount,
   subtext,
   variant = "default",
+  href,
 }: BudgetSummaryCardProps) {
   const styles = variantStyles[variant];
   const Icon = styles.icon;
@@ -71,8 +74,13 @@ export function BudgetSummaryCard({
         : "text-red-600"
       : styles.amount;
 
-  return (
-    <Card className="relative overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+  const card = (
+    <Card
+      className={cn(
+        "relative h-full overflow-hidden shadow-sm transition-shadow",
+        href && "hover:shadow-md"
+      )}
+    >
       <div
         className={cn(
           "absolute inset-0 bg-gradient-to-br opacity-60 pointer-events-none",
@@ -104,5 +112,17 @@ export function BudgetSummaryCard({
         )}
       </CardContent>
     </Card>
+  );
+
+  if (!href) return card;
+
+  return (
+    <Link
+      href={href}
+      aria-label={`View transactions included in ${label}`}
+      className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    >
+      {card}
+    </Link>
   );
 }

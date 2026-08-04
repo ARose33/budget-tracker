@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   Collapsible,
@@ -26,6 +27,8 @@ interface BudgetGroupCardProps {
   onEditItem?: (categoryId: string) => void;
   onAddItem?: (group: BudgetGroup) => void;
   onEditGroup?: (group: BudgetGroup) => void;
+  transactionsHref?: string;
+  getItemTransactionsHref?: (categoryId: string) => string;
 }
 
 export function BudgetGroupCard({
@@ -33,6 +36,8 @@ export function BudgetGroupCard({
   onEditItem,
   onAddItem,
   onEditGroup,
+  transactionsHref,
+  getItemTransactionsHref,
 }: BudgetGroupCardProps) {
   const [open, setOpen] = useState(false);
   const percentage =
@@ -43,7 +48,7 @@ export function BudgetGroupCard({
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 transition-colors hover:bg-accent/50">
-        <CollapsibleTrigger className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left">
+        <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-2 text-left">
           <div className="flex min-w-0 items-center gap-2">
             <ChevronRight
               className={cn(
@@ -56,6 +61,20 @@ export function BudgetGroupCard({
               ({group.items.length})
             </span>
           </div>
+        </CollapsibleTrigger>
+        {transactionsHref ? (
+          <Link
+            href={transactionsHref}
+            aria-label={`View transactions included in ${group.group_name}`}
+            className={cn(
+              "shrink-0 rounded-sm text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              percentage > 100 ? "text-red-500" : "text-muted-foreground"
+            )}
+          >
+            {formatCurrency(group.total_spent)} /{" "}
+            {formatCurrency(group.total_effective)}
+          </Link>
+        ) : (
           <span
             className={cn(
               "shrink-0 text-sm font-medium",
@@ -65,7 +84,7 @@ export function BudgetGroupCard({
             {formatCurrency(group.total_spent)} /{" "}
             {formatCurrency(group.total_effective)}
           </span>
-        </CollapsibleTrigger>
+        )}
         <div className="flex shrink-0 items-center gap-1">
           <Button
             aria-label={`Add subcategory to ${group.group_name}`}
@@ -94,7 +113,10 @@ export function BudgetGroupCard({
             <BudgetLineItemRow
               key={item.category_id}
               item={item}
-              onClick={() => onEditItem?.(item.category_id)}
+              transactionsHref={getItemTransactionsHref?.(item.category_id)}
+              onEdit={
+                onEditItem ? () => onEditItem(item.category_id) : undefined
+              }
             />
           ))}
         </div>

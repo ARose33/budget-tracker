@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -47,6 +48,10 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  parseTransactionFilters,
+  updateTransactionFilterParams,
+} from "@/lib/transaction-filter-params";
 import { supabase } from "@/lib/supabase/client";
 import { getCurrentUserId } from "@/lib/supabase/auth";
 
@@ -58,10 +63,12 @@ function formatCurrency(amount: number) {
   }).format(Math.abs(amount));
 }
 
-export default function TransactionsPage() {
+function TransactionsContent() {
   const queryClient = useQueryClient();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [page, setPage] = useState(0);
-  const [filters, setFilters] = useState<TransactionFilters>({});
+  const filters = parseTransactionFilters(searchParams);
   const [sort, setSort] = useState<TransactionSort>({
     field: "date",
     direction: "desc",
@@ -69,16 +76,29 @@ export default function TransactionsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const pageSize = 50;
 
+  const handleFiltersChange = (nextFilters: TransactionFilters) => {
+    setPage(0);
+    setSelected(new Set());
+
+    const params = updateTransactionFilterParams(searchParams, nextFilters);
+    const query = params.toString();
+    window.history.replaceState(
+      null,
+      "",
+      query ? `${pathname}?${query}` : pathname
+    );
+  };
+
   const { data, isLoading } = useQuery({
     queryKey: ["transactions", page, filters, sort],
     queryFn: () => getTransactions(page, pageSize, filters, sort),
   });
 
   const { data: uncatData } = useQuery({
-    queryKey: ["uncategorized-count"],
+    queryKey: ["uncategorized-count", filters.dateFrom, filters.dateTo],
     queryFn: async () => {
       const userId = await getCurrentUserId();
-      const { count } = await supabase
+      let query = supabase
         .from("transactions")
         .select("*", { count: "exact", head: true })
         .eq("user_id", userId)
@@ -86,6 +106,11 @@ export default function TransactionsPage() {
         .is("parent_id", null)
         .or("is_split.is.null,is_split.eq.false")
         .or("external_status.is.null,external_status.neq.removed");
+
+      if (filters.dateFrom) query = query.gte("date", filters.dateFrom);
+      if (filters.dateTo) query = query.lte("date", filters.dateTo);
+
+      const { count } = await query;
       return count ?? 0;
     },
   });
@@ -115,6 +140,7 @@ export default function TransactionsPage() {
     queryClient.invalidateQueries({ queryKey: ["transactions"] });
     queryClient.invalidateQueries({ queryKey: ["uncategorized-count"] });
     queryClient.invalidateQueries({ queryKey: ["budget"] });
+    queryClient.invalidateQueries({ queryKey: ["budget-uncategorized"] });
     setSelected(new Set());
   };
 
@@ -213,10 +239,7 @@ export default function TransactionsPage() {
 
       <TransactionFiltersBar
         filters={filters}
-        onChange={(f) => {
-          setFilters(f);
-          setPage(0);
-        }}
+        onChange={handleFiltersChange}
         uncategorizedCount={uncatData}
       />
 
@@ -368,6 +391,20 @@ function SortableHeader({
         />
       </button>
     </th>
+  );
+}
+
+export default function TransactionsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <TransactionsContent />
+    </Suspense>
   );
 }
 

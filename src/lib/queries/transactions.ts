@@ -43,6 +43,7 @@ export interface SplitAllocation {
 
 export interface TransactionFilters {
   search?: string;
+  categoryType?: "Income" | "Expense";
   categoryGroup?: string;
   categoryId?: string;
   accountId?: string;
@@ -77,12 +78,20 @@ export async function getTransactions(
 
   if (filters.categoryId) {
     categoryIds = [filters.categoryId];
-  } else if (filters.categoryGroup) {
-    const { data: categories, error: categoryError } = await supabase
+  } else if (filters.categoryGroup || filters.categoryType) {
+    let categoryQuery = supabase
       .from("budget_categories")
       .select("id")
-      .eq("user_id", userId)
-      .eq("group_name", filters.categoryGroup);
+      .eq("user_id", userId);
+
+    if (filters.categoryGroup) {
+      categoryQuery = categoryQuery.eq("group_name", filters.categoryGroup);
+    }
+    if (filters.categoryType) {
+      categoryQuery = categoryQuery.ilike("category_type", filters.categoryType);
+    }
+
+    const { data: categories, error: categoryError } = await categoryQuery;
 
     if (categoryError) throw categoryError;
     categoryIds = categories?.map((category) => category.id) ?? [];
