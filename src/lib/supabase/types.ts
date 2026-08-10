@@ -2211,6 +2211,116 @@ export type Database = {
           },
         ]
       }
+      statement_reconciliation_reviews: {
+        Row: {
+          account_id: string | null
+          account_name: string | null
+          amount: number
+          candidate_transaction_ids: string[]
+          candidates: Json
+          created_at: string
+          decision_note: string | null
+          description: string
+          id: string
+          imported_transaction_id: string | null
+          matched_transaction_id: string | null
+          page: number | null
+          posted_date: string | null
+          proposed_date: string
+          proposed_transaction: Json
+          reason: string | null
+          report_id: string
+          review_type: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          risk_flags: string[]
+          row_reference: string | null
+          source_record_id: string
+          statement_account_key: string
+          statement_file: string
+          statement_period_end: string | null
+          statement_period_start: string | null
+          status: string
+          transaction_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          account_name?: string | null
+          amount: number
+          candidate_transaction_ids?: string[]
+          candidates?: Json
+          created_at?: string
+          decision_note?: string | null
+          description: string
+          id?: string
+          imported_transaction_id?: string | null
+          matched_transaction_id?: string | null
+          page?: number | null
+          posted_date?: string | null
+          proposed_date: string
+          proposed_transaction: Json
+          reason?: string | null
+          report_id: string
+          review_type: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          risk_flags?: string[]
+          row_reference?: string | null
+          source_record_id: string
+          statement_account_key: string
+          statement_file: string
+          statement_period_end?: string | null
+          statement_period_start?: string | null
+          status?: string
+          transaction_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          account_name?: string | null
+          amount?: number
+          candidate_transaction_ids?: string[]
+          candidates?: Json
+          created_at?: string
+          decision_note?: string | null
+          description?: string
+          id?: string
+          imported_transaction_id?: string | null
+          matched_transaction_id?: string | null
+          page?: number | null
+          posted_date?: string | null
+          proposed_date?: string
+          proposed_transaction?: Json
+          reason?: string | null
+          report_id?: string
+          review_type?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          risk_flags?: string[]
+          row_reference?: string | null
+          source_record_id?: string
+          statement_account_key?: string
+          statement_file?: string
+          statement_period_end?: string | null
+          statement_period_start?: string | null
+          status?: string
+          transaction_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "statement_reconciliation_reviews_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           account: string | null
@@ -2960,6 +3070,15 @@ export type Database = {
       }
     }
     Functions: {
+      resolve_statement_reconciliation_review: {
+        Args: {
+          p_candidate_transaction_id?: string | null
+          p_decision: string
+          p_note?: string | null
+          p_review_id: string
+        }
+        Returns: Json
+      }
       ensure_budgets_for_month:
         | { Args: { target_month: string }; Returns: undefined }
         | {

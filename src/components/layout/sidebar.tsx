@@ -12,7 +12,9 @@ import {
   Menu,
   Wallet,
   LogOut,
+  FileCheck2,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
@@ -40,6 +42,18 @@ const navSections: {
 
 function NavLinks({ onClick }: { onClick?: () => void }) {
   const pathname = usePathname();
+  const { data: reviewSummary } = useQuery<{ summary: { total: number } }>({
+    queryKey: ["statement-reconciliation", "summary"],
+    queryFn: async () => {
+      const response = await fetch("/api/statement-reconciliation?summary=1");
+      if (!response.ok) throw new Error("Review summary unavailable");
+      return response.json();
+    },
+    retry: false,
+  });
+  const sections = reviewSummary?.summary.total
+    ? [...navSections, { label: "Data", items: [{ href: "/statement-reconciliation", label: "Statement Review", icon: FileCheck2 }] }]
+    : navSections;
 
   return (
     <nav className="flex flex-col gap-6 px-4 py-6 h-full">
@@ -58,7 +72,7 @@ function NavLinks({ onClick }: { onClick?: () => void }) {
       </Link>
 
       <div className="flex flex-col gap-6 flex-1">
-        {navSections.map((section, idx) => (
+        {sections.map((section, idx) => (
           <div key={idx} className="flex flex-col gap-1">
             {section.label && (
               <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
@@ -90,7 +104,12 @@ function NavLinks({ onClick }: { onClick?: () => void }) {
                         : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80"
                     )}
                   />
-                  {item.label}
+                  <span className="flex-1">{item.label}</span>
+                  {item.href === "/statement-reconciliation" && reviewSummary && (
+                    <span className="rounded-full bg-sidebar-primary px-1.5 py-0.5 text-[10px] text-sidebar-primary-foreground">
+                      {reviewSummary.summary.total}
+                    </span>
+                  )}
                 </Link>
               );
             })}

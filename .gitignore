@@ -23,6 +23,8 @@
 # misc
 .DS_Store
 *.pem
+/Statements/
+/reports/statement-reconciliation/
 
 # debug
 npm-debug.log*

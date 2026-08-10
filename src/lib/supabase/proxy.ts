@@ -7,6 +7,7 @@ const protectedRoutes = [
   "/analysis",
   "/budget",
   "/transactions",
+  "/statement-reconciliation",
 ];
 
 function isProtectedPath(pathname: string) {

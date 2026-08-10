@@ -6,7 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "statements:dry-run": "node scripts/reconcile-statements.mjs dry-run",
+    "statements:export": "node scripts/reconcile-statements.mjs export",
+    "statements:prepare": "node scripts/reconcile-statements.mjs prepare",
+    "statements:review": "node scripts/reconcile-statements.mjs review",
+    "statements:apply": "node scripts/reconcile-statements.mjs apply",
+    "statements:verify": "node scripts/reconcile-statements.mjs verify",
+    "statements:rollback": "node scripts/reconcile-statements.mjs rollback",
+    "statements:seed-review": "node scripts/seed-statement-review.mjs",
+    "test:statements": "node --test src/lib/statements/parser.test.ts scripts/lib/statement-parser.test.mjs scripts/lib/statement-review.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
