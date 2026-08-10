@@ -27,6 +27,11 @@ const navSections: {
     items: [
       { href: "/budget", label: "Budget", icon: LayoutDashboard },
       { href: "/transactions", label: "Transactions", icon: Receipt },
+      {
+        href: "/statement-reconciliation",
+        label: "Reconciliation",
+        icon: FileCheck2,
+      },
       { href: "/accounts", label: "Accounts", icon: Landmark },
     ],
   },
@@ -51,9 +56,6 @@ function NavLinks({ onClick }: { onClick?: () => void }) {
     },
     retry: false,
   });
-  const sections = reviewSummary?.summary.total
-    ? [...navSections, { label: "Data", items: [{ href: "/statement-reconciliation", label: "Statement Review", icon: FileCheck2 }] }]
-    : navSections;
 
   return (
     <nav className="flex flex-col gap-6 px-4 py-6 h-full">
@@ -72,7 +74,7 @@ function NavLinks({ onClick }: { onClick?: () => void }) {
       </Link>
 
       <div className="flex flex-col gap-6 flex-1">
-        {sections.map((section, idx) => (
+        {navSections.map((section, idx) => (
           <div key={idx} className="flex flex-col gap-1">
             {section.label && (
               <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
@@ -105,11 +107,13 @@ function NavLinks({ onClick }: { onClick?: () => void }) {
                     )}
                   />
                   <span className="flex-1">{item.label}</span>
-                  {item.href === "/statement-reconciliation" && reviewSummary && (
-                    <span className="rounded-full bg-sidebar-primary px-1.5 py-0.5 text-[10px] text-sidebar-primary-foreground">
-                      {reviewSummary.summary.total}
-                    </span>
-                  )}
+                  {item.href === "/statement-reconciliation" &&
+                    reviewSummary &&
+                    reviewSummary.summary.total > 0 && (
+                      <span className="rounded-full bg-sidebar-primary px-1.5 py-0.5 text-[10px] text-sidebar-primary-foreground">
+                        {reviewSummary.summary.total}
+                      </span>
+                    )}
                 </Link>
               );
             })}
