@@ -1,6 +1,6 @@
 # Statement reconciliation workflow
 
-This workflow parses the PDFs under `Statements/Budget Input`, compares them with the existing Supabase transaction history, and applies only explicitly approved statement rows.
+This workflow parses the PDFs under `Statements/Budget Input` and compares them with the original, non-statement Supabase transaction history. Statement dates before or after that per-account history window are imported automatically when the web review queue is seeded. Only dates that overlap the original Supabase history are sent to reconciliation.
 
 ## Safety model
 
@@ -8,6 +8,8 @@ This workflow parses the PDFs under `Statements/Budget Input`, compares them wit
 - Statement rows retain their source filename, period, and page/row reference in the report.
 - Account mappings and date policies are explicit review-manifest decisions.
 - Existing Plaid, CSV, and manual transactions are never updated or deleted by apply.
+- Prior statement imports do not expand the reconciliation window. The window is the first through last non-statement transaction for each mapped account (including approved alias accounts).
+- `statements:seed-review` idempotently inserts missing rows outside that window, verifies their stored fields, and omits them from the review queue.
 - Inserts use deterministic external transaction IDs and the existing unique provider/external-ID/user constraint.
 - Apply is limited to 250 approved rows and should be filtered to one account/month.
 - Apply prechecks deterministic external IDs, inserts each scoped batch atomically under the database's existing unique index, and verifies date, amount, description, account, user, and batch source afterward. The project does not enable PostgREST's transaction-end rollback preference, so the workflow does not use `.rollback()` as a dry-run mechanism.

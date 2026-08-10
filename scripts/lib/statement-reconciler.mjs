@@ -345,6 +345,45 @@ function reportStatementRow(statement, mapping) {
   };
 }
 
+function isStatementImport(transaction) {
+  return (
+    transaction.connection_provider === "statement" ||
+    transaction.source === "statement" ||
+    transaction.external_transaction_id?.startsWith("stmt_") ||
+    transaction.upload_source?.startsWith("statement:")
+  );
+}
+
+export function buildReconciliationWindows(mappings, existingTransactions) {
+  return mappings.map((mapping) => {
+    const accountIds = [mapping.accountId, ...(mapping.aliasAccountIds ?? [])].filter(Boolean);
+    const dates = existingTransactions
+      .filter(
+        (transaction) =>
+          accountIds.includes(transaction.account_id) && !isStatementImport(transaction)
+      )
+      .map((transaction) => transaction.date)
+      .filter(Boolean)
+      .sort();
+    return {
+      statementAccountKey: mapping.statementAccountKey,
+      accountIds,
+      firstExistingDate: dates[0] ?? null,
+      lastExistingDate: dates.at(-1) ?? null,
+      existingTransactionCount: dates.length,
+    };
+  });
+}
+
+export function isWithinReconciliationWindow(statement, window) {
+  if (!window?.firstExistingDate || !window.lastExistingDate) return false;
+  return [statement.transactionDate, statement.postedDate]
+    .filter(Boolean)
+    .some(
+      (date) => date >= window.firstExistingDate && date <= window.lastExistingDate
+    );
+}
+
 function statementIdentityKey(statement) {
   return [
     statement.statementAccountKey,
@@ -395,6 +434,7 @@ function consolidateStatementTransactions(files) {
     transactions.push(...ranked[0][1]);
     for (const [fileName, rows] of ranked.slice(1)) {
       overlappingRows.push({
+        ...reportStatementRow(rows[0], null),
         identityKey: key,
         statementFile: fileName,
         duplicateOf: ranked[0][0],
@@ -406,7 +446,12 @@ function consolidateStatementTransactions(files) {
   return { canonicalFiles, transactions, duplicateFiles, overlappingRows };
 }
 
-function assignMatches(statementTransactions, mappings, existingTransactions) {
+function assignMatches(
+  statementTransactions,
+  mappings,
+  existingTransactions,
+  usedExistingIds = new Set()
+) {
   const mappingByKey = new Map(mappings.map((mapping) => [mapping.statementAccountKey, mapping]));
   const existingByAccount = new Map();
   for (const transaction of existingTransactions) {
@@ -415,7 +460,6 @@ function assignMatches(statementTransactions, mappings, existingTransactions) {
     existingByAccount.set(transaction.account_id, rows);
   }
 
-  const usedExistingIds = new Set();
   const exactMatches = [];
   const highConfidenceMatches = [];
   const possibleMatches = [];
@@ -876,12 +920,87 @@ export async function buildReconciliationReport({
     statementAccountKeys,
     throughDate
   );
-  const matches = assignMatches(
-    inRangeTransactions,
+  const reconciliationWindows = buildReconciliationWindows(
     mappings,
     snapshot.transactions
   );
-  const datePolicies = inferDatePolicies(matches, statementAccountKeys);
+  const windowByKey = new Map(
+    reconciliationWindows.map((window) => [window.statementAccountKey, window])
+  );
+  const mappingByKey = new Map(
+    mappings.map((mapping) => [mapping.statementAccountKey, mapping])
+  );
+  const reconciliationTransactions = [];
+  const automaticTransactions = [];
+  for (const transaction of inRangeTransactions) {
+    const mapping = mappingByKey.get(transaction.statementAccountKey);
+    if (!mapping || mapping.status !== "mapped" || !mapping.accountId) {
+      reconciliationTransactions.push(transaction);
+    } else if (
+      isWithinReconciliationWindow(
+        transaction,
+        windowByKey.get(transaction.statementAccountKey)
+      )
+    ) {
+      reconciliationTransactions.push(transaction);
+    } else {
+      automaticTransactions.push(transaction);
+    }
+  }
+  const usedExistingIds = new Set();
+  const matches = assignMatches(
+    reconciliationTransactions,
+    mappings,
+    snapshot.transactions,
+    usedExistingIds
+  );
+  const automaticMatches = assignMatches(
+    automaticTransactions,
+    mappings,
+    snapshot.transactions,
+    usedExistingIds
+  );
+  const outsideOverlapExceptions = [
+    ...automaticMatches.possibleMatches,
+    ...automaticMatches.conflicts,
+    ...automaticMatches.duplicateCandidates,
+  ].map((row) => ({
+    ...row,
+    reconciliationRequired: false,
+    reason: `${row.reason} Kept out of the reconciliation queue because the statement date is outside the original Supabase history window.`,
+  }));
+  matches.exactMatches.push(
+    ...automaticMatches.exactMatches.map((row) => ({
+      ...row,
+      reconciliationRequired: false,
+    }))
+  );
+  matches.highConfidenceMatches.push(
+    ...automaticMatches.highConfidenceMatches.map((row) => ({
+      ...row,
+      reconciliationRequired: false,
+    }))
+  );
+  matches.missing.push(
+    ...automaticMatches.missing.map((row) => ({
+      ...row,
+      reconciliationRequired: false,
+      reason:
+        "No reconciliation required: the statement date is outside the original Supabase history window.",
+    }))
+  );
+  matches.usedExistingIds = usedExistingIds;
+  const datePolicies = inferDatePolicies(
+    {
+      exactMatches: matches.exactMatches.filter(
+        (row) => row.reconciliationRequired !== false
+      ),
+      highConfidenceMatches: matches.highConfidenceMatches.filter(
+        (row) => row.reconciliationRequired !== false
+      ),
+    },
+    statementAccountKeys
+  );
   const safeStatementFiles = new Set(
     parsed.files
       .filter(
@@ -915,6 +1034,12 @@ export async function buildReconciliationReport({
     snapshot.userId,
     datePolicies,
     snapshot.transactions
+  );
+  const automaticInsertions = proposedInsertions.filter(
+    (row) => row.reconciliationRequired === false
+  );
+  const reconciliationInsertions = proposedInsertions.filter(
+    (row) => row.reconciliationRequired !== false
   );
   const unmatchedExisting = existingNotInStatements(
     snapshot.transactions,
@@ -954,6 +1079,7 @@ export async function buildReconciliationReport({
       })),
     },
     accountMappings: mappings,
+    reconciliationWindows,
     datePolicies,
     statementCoverage: coverage,
     statementFiles: parsed.files.map((file) => ({
@@ -978,10 +1104,18 @@ export async function buildReconciliationReport({
     exactMatches: matches.exactMatches,
     highConfidenceMatches: matches.highConfidenceMatches,
     possibleMatches: matches.possibleMatches,
-    likelyDuplicates: [...matches.duplicateCandidates, ...consolidated.overlappingRows],
+    likelyDuplicates: [
+      ...matches.duplicateCandidates,
+      ...consolidated.overlappingRows.filter((row) =>
+        isWithinReconciliationWindow(row, windowByKey.get(row.statementAccountKey))
+      ),
+    ],
     conflicts: matches.conflicts,
+    outsideOverlapExceptions,
     missingFromSupabase: matches.missing,
     proposedInsertions,
+    automaticInsertions,
+    reconciliationInsertions,
     existingNotInStatements: unmatchedExisting,
     parsingFailures,
     unmappedAccounts: mappings.filter((mapping) => mapping.status !== "mapped"),

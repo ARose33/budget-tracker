@@ -330,6 +330,8 @@ async function dryRun() {
         highConfidenceMatches: report.highConfidenceMatches.length,
         possibleMatches: report.possibleMatches.length,
         proposedInsertions: report.proposedInsertions.length,
+        automaticInsertions: report.automaticInsertions?.length ?? 0,
+        reconciliationInsertions: report.reconciliationInsertions?.length ?? report.proposedInsertions.length,
         likelyDuplicates: report.likelyDuplicates.length,
         conflicts: report.conflicts.length,
         parsingFailures: report.parsingFailures.length,

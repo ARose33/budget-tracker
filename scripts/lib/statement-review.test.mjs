@@ -83,6 +83,23 @@ test("review manifest approves unchanged low-risk rows and fingerprints them", (
   assert.equal(manifest.approvalToken, manifestApprovalToken(manifest));
 });
 
+test("review manifest automatically approves rows outside Supabase history overlap", () => {
+  const report = baseReport();
+  report.proposedInsertions = [
+    proposedRow({
+      reconciliationRequired: false,
+      amount: -9000,
+      description: "TRANSFER TO SAVINGS",
+    }),
+  ];
+  const manifest = buildReviewManifest(report, {
+    accounts: [{ id: "account-1" }],
+    transactions: [],
+  });
+  assert.equal(manifest.insertionDecisions[0].decision, "approved");
+  assert.deepEqual(manifest.insertionDecisions[0].riskFlags, []);
+});
+
 test("editing a decision changes the token and blocks the row", () => {
   const report = baseReport();
   const manifest = buildReviewManifest(report, {

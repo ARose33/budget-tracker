@@ -176,11 +176,13 @@ export function buildReviewManifest(report, snapshot) {
     dateDecisions.map((decision) => [decision.statementAccountKey, decision])
   );
   const insertionDecisions = report.proposedInsertions.map((row) => {
-    const flags = riskFlags(
-      row,
-      accountByKey.get(row.statementAccountKey),
-      dateByKey.get(row.statementAccountKey)
-    );
+    const flags = row.reconciliationRequired === false
+      ? []
+      : riskFlags(
+          row,
+          accountByKey.get(row.statementAccountKey),
+          dateByKey.get(row.statementAccountKey)
+        );
     return {
       sourceRecordId: row.sourceRecordId,
       rowFingerprint: rowFingerprint(row),
