@@ -145,7 +145,7 @@ export function BudgetEditDialog({
           {showBudgetLimit && (
             <div className="grid gap-2">
               <label className="text-sm font-medium" htmlFor="budget-limit">
-                Monthly budget
+                Monthly target
               </label>
               <Input
                 id="budget-limit"
@@ -156,6 +156,9 @@ export function BudgetEditDialog({
                 min={0}
                 step={10}
               />
+              <p className="text-xs text-muted-foreground">
+                Applies to this month and carries forward to existing future plans.
+              </p>
             </div>
           )}
         </div>

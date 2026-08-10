@@ -21,12 +21,14 @@ interface BudgetLineItemRowProps {
   item: BudgetLineItem;
   transactionsHref?: string;
   onEdit?: () => void;
+  view?: "plan" | "activity";
 }
 
 export function BudgetLineItemRow({
   item,
   transactionsHref,
   onEdit,
+  view = "activity",
 }: BudgetLineItemRowProps) {
   const spent = Number(item.actual_spent);
   const effective = Number(item.effective_budget);
@@ -36,7 +38,25 @@ export function BudgetLineItemRow({
   const percentage = effective > 0 ? (spent / effective) * 100 : spent > 0 ? 100 : 0;
   const remaining = effective - spent;
 
-  const content = (
+  const planContent = (
+    <div className="min-w-0 flex-1">
+      <div className="flex items-center justify-between gap-3">
+        <span className="truncate text-sm font-medium">{item.line_item_name}</span>
+        <span className="shrink-0 font-semibold tabular-nums">
+          {formatCurrency(budget)}
+        </span>
+      </div>
+      {item.category_type.toLowerCase() === "expense" && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          {rollover === 0
+            ? `${formatCurrency(budget)} available`
+            : `${rollover > 0 ? "+" : ""}${formatCurrency(rollover)} rollover · ${formatCurrency(effective)} available`}
+        </p>
+      )}
+    </div>
+  );
+
+  const activityContent = (
     <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between mb-1">
           <span className="text-sm font-medium truncate">
@@ -89,9 +109,11 @@ export function BudgetLineItemRow({
     </div>
   );
 
+  const content = view === "plan" ? planContent : activityContent;
+
   return (
     <div className="flex items-center gap-2 rounded-md px-3 py-2 transition-colors hover:bg-accent/50">
-      {transactionsHref ? (
+      {view === "activity" && transactionsHref ? (
         <Link
           href={transactionsHref}
           aria-label={`View transactions included in ${item.line_item_name}`}

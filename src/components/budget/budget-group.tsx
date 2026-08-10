@@ -29,6 +29,7 @@ interface BudgetGroupCardProps {
   onEditGroup?: (group: BudgetGroup) => void;
   transactionsHref?: string;
   getItemTransactionsHref?: (categoryId: string) => string;
+  view?: "plan" | "activity";
 }
 
 export function BudgetGroupCard({
@@ -38,8 +39,9 @@ export function BudgetGroupCard({
   onEditGroup,
   transactionsHref,
   getItemTransactionsHref,
+  view = "activity",
 }: BudgetGroupCardProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(view === "plan");
   const percentage =
     group.total_effective > 0
       ? (group.total_spent / group.total_effective) * 100
@@ -62,7 +64,20 @@ export function BudgetGroupCard({
             </span>
           </div>
         </CollapsibleTrigger>
-        {transactionsHref ? (
+        {view === "plan" ? (
+          <div className="shrink-0 text-right">
+            <p className="text-sm font-semibold tabular-nums">
+              {formatCurrency(group.total_budget)}
+            </p>
+            {group.category_type.toLowerCase() === "expense" &&
+              group.total_rollover !== 0 && (
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  {group.total_rollover > 0 ? "+" : ""}
+                  {formatCurrency(group.total_rollover)} rollover
+                </p>
+              )}
+          </div>
+        ) : transactionsHref ? (
           <Link
             href={transactionsHref}
             aria-label={`View transactions included in ${group.group_name}`}
@@ -85,27 +100,33 @@ export function BudgetGroupCard({
             {formatCurrency(group.total_effective)}
           </span>
         )}
-        <div className="flex shrink-0 items-center gap-1">
-          <Button
-            aria-label={`Add subcategory to ${group.group_name}`}
-            title={`Add subcategory to ${group.group_name}`}
-            size="sm"
-            variant="outline"
-            onClick={() => onAddItem?.(group)}
-          >
-            <Plus />
-            Subcategory
-          </Button>
-          <Button
-            aria-label={`Edit ${group.group_name} category`}
-            title={`Edit ${group.group_name} category`}
-            size="icon-sm"
-            variant="ghost"
-            onClick={() => onEditGroup?.(group)}
-          >
-            <Pencil />
-          </Button>
-        </div>
+        {(onAddItem || onEditGroup) && (
+          <div className="flex shrink-0 items-center gap-1">
+            {onAddItem && (
+              <Button
+                aria-label={`Add subcategory to ${group.group_name}`}
+                title={`Add subcategory to ${group.group_name}`}
+                size="sm"
+                variant="outline"
+                onClick={() => onAddItem(group)}
+              >
+                <Plus />
+                Subcategory
+              </Button>
+            )}
+            {onEditGroup && (
+              <Button
+                aria-label={`Edit ${group.group_name} category`}
+                title={`Edit ${group.group_name} category`}
+                size="icon-sm"
+                variant="ghost"
+                onClick={() => onEditGroup(group)}
+              >
+                <Pencil />
+              </Button>
+            )}
+          </div>
+        )}
       </div>
       <CollapsibleContent>
         <div className="ml-2 mt-1 border-l-2 border-border pl-2">
@@ -113,7 +134,12 @@ export function BudgetGroupCard({
             <BudgetLineItemRow
               key={item.category_id}
               item={item}
-              transactionsHref={getItemTransactionsHref?.(item.category_id)}
+              transactionsHref={
+                view === "activity"
+                  ? getItemTransactionsHref?.(item.category_id)
+                  : undefined
+              }
+              view={view}
               onEdit={
                 onEditItem ? () => onEditItem(item.category_id) : undefined
               }

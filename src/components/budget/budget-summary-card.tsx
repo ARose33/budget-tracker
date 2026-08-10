@@ -3,13 +3,26 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Wallet, Target } from "lucide-react";
+import {
+  Layers3,
+  RotateCcw,
+  Target,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 
 interface BudgetSummaryCardProps {
   label: string;
   amount: number;
   subtext?: string;
-  variant?: "default" | "income" | "expense" | "net";
+  variant?:
+    | "default"
+    | "income"
+    | "expense"
+    | "net"
+    | "rollover"
+    | "available";
   href?: string;
 }
 
@@ -46,6 +59,22 @@ const variantStyles = {
     accent: "from-blue-50 to-transparent",
     amount: "",
     icon: Wallet,
+  },
+  rollover: {
+    ring: "ring-amber-200",
+    iconBg: "bg-amber-100",
+    iconColor: "text-amber-700",
+    accent: "from-amber-50 to-transparent",
+    amount: "text-amber-800",
+    icon: RotateCcw,
+  },
+  available: {
+    ring: "ring-blue-200",
+    iconBg: "bg-blue-100",
+    iconColor: "text-blue-700",
+    accent: "from-blue-50 to-transparent",
+    amount: "text-blue-800",
+    icon: Layers3,
   },
   default: {
     ring: "ring-slate-200",

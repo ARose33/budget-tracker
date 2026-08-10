@@ -13,6 +13,8 @@ import {
   type BudgetFormValues,
 } from "@/components/budget/budget-edit-dialog";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   createBudgetCategory,
   getBudgetWithRollover,
@@ -24,6 +26,7 @@ import {
   type BudgetCategoryType,
 } from "@/lib/queries/budget";
 import { createTransactionsHref } from "@/lib/transaction-filter-params";
+import { calculateBudgetTotals } from "@/lib/budget-math";
 import { useMonthSelector } from "@/hooks/use-month-selector";
 import { ChevronRight, CircleHelp, Loader2, Plus } from "lucide-react";
 
@@ -104,10 +107,7 @@ function BudgetContent() {
     (g) => g.category_type === "Income" || g.category_type === "income"
   );
 
-  const totalIncome = incomeGroups.reduce((s, g) => s + g.total_spent, 0);
-  const totalExpenses = expenseGroups.reduce((s, g) => s + g.total_spent, 0);
-  const totalBudgeted = expenseGroups.reduce((s, g) => s + g.total_effective, 0);
-  const net = totalIncome - totalExpenses;
+  const totals = calculateBudgetTotals(groups);
 
   const saveMutation = useMutation({
     mutationFn: ({
@@ -190,44 +190,75 @@ function BudgetContent() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Monthly Budget</h2>
+    <div className="mx-auto max-w-5xl space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold">Monthly Budget</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Set your plan, then track this month against it.
+          </p>
+        </div>
         <MonthPicker />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <BudgetSummaryCard
-          label="Income"
-          amount={totalIncome}
-          variant="income"
-          href={incomeTransactionsHref}
-        />
-        <BudgetSummaryCard
-          label="Expenses"
-          amount={totalExpenses}
-          variant="expense"
-          href={expenseTransactionsHref}
-        />
-        <BudgetSummaryCard
-          label="Budgeted"
-          amount={totalBudgeted}
-        />
-        <BudgetSummaryCard
-          label="Net"
-          amount={net}
-          variant="net"
-          subtext={
-            totalIncome > 0
-              ? `${((net / totalIncome) * 100).toFixed(0)}% savings rate`
-              : undefined
-          }
-        />
-      </div>
+      <Tabs defaultValue="plan">
+        <TabsList aria-label="Budget views">
+          <TabsTrigger value="plan">Plan</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="plan" className="space-y-6">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <BudgetSummaryCard
+              label="Budgeted income"
+              amount={totals.budgetedIncome}
+              variant="income"
+              subtext="Monthly target"
+            />
+            <BudgetSummaryCard
+              label="Budgeted expenses"
+              amount={totals.budgetedExpenses}
+              variant="expense"
+              subtext="Monthly target"
+            />
+            <BudgetSummaryCard
+              label="Expense rollover"
+              amount={totals.expenseRollover}
+              variant="rollover"
+              subtext="From earlier months"
+            />
+            <BudgetSummaryCard
+              label="Available for expenses"
+              amount={totals.availableExpenses}
+              variant="available"
+              subtext="Budget + rollover"
+            />
+          </div>
+
+          <Card size="sm">
+            <CardContent className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+              <div>
+                <p className="font-medium">Planned cash flow</p>
+                <p className="text-xs text-muted-foreground">
+                  Budgeted income minus budgeted expenses; rollover is excluded.
+                </p>
+              </div>
+              <p
+                className={`text-xl font-bold tabular-nums ${
+                  totals.plannedNet >= 0 ? "text-emerald-700" : "text-red-600"
+                }`}
+              >
+                {formatCurrency(totals.plannedNet)}
+              </p>
+            </CardContent>
+          </Card>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-lg font-semibold text-emerald-700">Income</h3>
+          <div>
+            <h3 className="text-lg font-semibold text-emerald-700">Income plan</h3>
+            <p className="text-xs text-muted-foreground">What you expect to receive this month</p>
+          </div>
           <Button
             size="sm"
             variant="outline"
@@ -244,6 +275,7 @@ function BudgetContent() {
             <BudgetGroupCard
               key={group.group_name}
               group={group}
+              view="plan"
               transactionsHref={createTransactionsHref({
                 ...monthDateRange,
                 categoryType: "Income",
@@ -271,10 +303,12 @@ function BudgetContent() {
           </p>
         )}
       </div>
-
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-lg font-semibold text-red-600">Expenses</h3>
+          <div>
+            <h3 className="text-lg font-semibold text-red-600">Expense plan</h3>
+            <p className="text-xs text-muted-foreground">What you intend to spend this month</p>
+          </div>
           <Button
             size="sm"
             variant="outline"
@@ -291,6 +325,7 @@ function BudgetContent() {
             <BudgetGroupCard
               key={group.group_name}
               group={group}
+              view="plan"
               transactionsHref={createTransactionsHref({
                 ...monthDateRange,
                 categoryType: "Expense",
@@ -318,6 +353,96 @@ function BudgetContent() {
           </p>
         )}
       </div>
+
+        </TabsContent>
+
+        <TabsContent value="activity" className="space-y-6">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <BudgetSummaryCard
+              label="Income received"
+              amount={totals.actualIncome}
+              variant="income"
+              href={incomeTransactionsHref}
+              subtext="This month"
+            />
+            <BudgetSummaryCard
+              label="Expenses spent"
+              amount={totals.actualExpenses}
+              variant="expense"
+              href={expenseTransactionsHref}
+              subtext="This month"
+            />
+            <BudgetSummaryCard
+              label="Actual cash flow"
+              amount={totals.actualNet}
+              variant="net"
+              subtext="Income minus expenses"
+            />
+            <BudgetSummaryCard
+              label="Expense budget left"
+              amount={totals.remainingExpenses}
+              variant="net"
+              subtext="Available minus spent"
+            />
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-emerald-700">Income activity</h3>
+            {incomeGroups.length > 0 ? (
+              incomeGroups.map((group) => (
+                <BudgetGroupCard
+                  key={group.group_name}
+                  group={group}
+                  view="activity"
+                  transactionsHref={createTransactionsHref({
+                    ...monthDateRange,
+                    categoryType: "Income",
+                    categoryGroup: group.group_name,
+                  })}
+                  getItemTransactionsHref={(categoryId) =>
+                    createTransactionsHref({
+                      ...monthDateRange,
+                      categoryType: "Income",
+                      categoryId,
+                    })
+                  }
+                />
+              ))
+            ) : (
+              <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                No income categories yet.
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-red-600">Expense activity</h3>
+            {expenseGroups.length > 0 ? (
+              expenseGroups.map((group) => (
+                <BudgetGroupCard
+                  key={group.group_name}
+                  group={group}
+                  view="activity"
+                  transactionsHref={createTransactionsHref({
+                    ...monthDateRange,
+                    categoryType: "Expense",
+                    categoryGroup: group.group_name,
+                  })}
+                  getItemTransactionsHref={(categoryId) =>
+                    createTransactionsHref({
+                      ...monthDateRange,
+                      categoryType: "Expense",
+                      categoryId,
+                    })
+                  }
+                />
+              ))
+            ) : (
+              <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                No expense categories yet.
+              </p>
+            )}
+          </div>
 
       <div className="space-y-3">
         <h3 className="text-lg font-semibold text-amber-700">Needs attention</h3>
@@ -357,6 +482,8 @@ function BudgetContent() {
           </div>
         </Link>
       </div>
+        </TabsContent>
+      </Tabs>
 
       <BudgetEditDialog
         key={getDialogKey(dialogMode)}

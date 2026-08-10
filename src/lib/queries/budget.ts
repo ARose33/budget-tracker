@@ -251,11 +251,12 @@ export async function ensureBudgetRows(year: number, month: number) {
 
   if (count && count > 0) return;
 
-  // Find the latest month with budget data
+  // Find the closest earlier month. A historical month must never inherit a future plan.
   const { data: latest } = await supabase
     .from("budgets")
     .select("year_number, month_number")
     .eq("user_id", userId)
+    .or(`year_number.lt.${year},and(year_number.eq.${year},month_number.lt.${month})`)
     .order("year_number", { ascending: false })
     .order("month_number", { ascending: false })
     .limit(1);
