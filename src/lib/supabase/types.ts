@@ -2328,6 +2328,7 @@ export type Database = {
           amount: number
           category: string | null
           category_id: string | null
+          categorization_status: string
           connection_provider: string
           created_at: string | null
           date: string
@@ -2350,6 +2351,7 @@ export type Database = {
           amount: number
           category?: string | null
           category_id?: string | null
+          categorization_status?: string
           connection_provider?: string
           created_at?: string | null
           date: string
@@ -2372,6 +2374,7 @@ export type Database = {
           amount?: number
           category?: string | null
           category_id?: string | null
+          categorization_status?: string
           connection_provider?: string
           created_at?: string | null
           date?: string
@@ -2980,6 +2983,7 @@ export type Database = {
           account_id: string | null
           amount: number | null
           category_id: string | null
+          categorization_status: string | null
           created_at: string | null
           date: string | null
           description: string | null
@@ -3070,6 +3074,10 @@ export type Database = {
       }
     }
     Functions: {
+      apply_transaction_categorizations: {
+        Args: { p_items: Json }
+        Returns: number
+      }
       resolve_statement_reconciliation_review: {
         Args: {
           p_candidate_transaction_id?: string | null
@@ -3120,6 +3128,13 @@ export type Database = {
           month_num: number
           net: number
           year_num: number
+        }[]
+      }
+      get_historical_categorization_matches: {
+        Args: { p_transaction_ids: string[] }
+        Returns: {
+          category_id: string
+          transaction_id: string
         }[]
       }
       get_monthly_uncategorized_summary: {

@@ -8,6 +8,7 @@ export interface Transaction {
   notes: string | null;
   amount: number;
   category_id: string | null;
+  categorization_status: CategorizationStatus;
   account_id: string | null;
   status: string | null;
   is_split: boolean | null;
@@ -47,10 +48,28 @@ export interface TransactionFilters {
   categoryGroup?: string;
   categoryId?: string;
   accountId?: string;
-  status?: string;
+  status?: CategorizationStatus;
   uncategorizedOnly?: boolean;
   dateFrom?: string;
   dateTo?: string;
+}
+
+export type CategorizationStatus = "uncategorized" | "pending" | "final";
+
+export interface CategorizationCounts {
+  uncategorized: number;
+  pending: number;
+  final: number;
+}
+
+export interface CategorizationBatchResult {
+  processed: number;
+  matchedFromHistory: number;
+  inferredByModel: number;
+  skipped: number;
+  remaining: number;
+  done: boolean;
+  queuedAtStart?: number;
 }
 
 export type TransactionSortField =
@@ -122,7 +141,7 @@ export async function getTransactions(
     .select(
       `
       id, date, description, amount, category_id, account_id,
-      status, is_split, parent_id, source, upload_source, created_at,
+      status, categorization_status, is_split, parent_id, source, upload_source, created_at,
       plaid_transaction_id, not_duplicate,
       budget_categories(group_name, line_item_name, category_type),
       accounts(name, institution)
@@ -136,10 +155,8 @@ export async function getTransactions(
   if (filters.search) {
     query = query.ilike("description", `%${filters.search}%`);
   }
-  if (filters.uncategorizedOnly) {
-    query = query
-      .is("category_id", null)
-      .or("is_split.is.null,is_split.eq.false");
+  if (filters.status === "uncategorized" || filters.uncategorizedOnly) {
+    query = query.eq("categorization_status", "uncategorized");
   } else if (categoryIds) {
     const categoryList = categoryIds.join(",");
     if (splitParentIds.length > 0) {
@@ -154,7 +171,7 @@ export async function getTransactions(
     query = query.eq("account_id", filters.accountId);
   }
   if (filters.status) {
-    query = query.eq("status", filters.status);
+    query = query.eq("categorization_status", filters.status);
   }
   if (filters.dateFrom) {
     query = query.gte("date", filters.dateFrom);
@@ -171,7 +188,9 @@ export async function getTransactions(
         ? "budget_categories(line_item_name)"
         : sort.field === "account"
           ? "accounts(name)"
-          : sort.field;
+      : sort.field === "status"
+        ? "categorization_status"
+        : sort.field;
 
   query = query
     .order(sortColumn, { ascending, nullsFirst: false })
@@ -245,7 +264,10 @@ export async function updateTransactionCategory(
   const userId = await getCurrentUserId();
   const { error } = await supabase
     .from("transactions")
-    .update({ category_id: categoryId })
+    .update({
+      category_id: categoryId,
+      categorization_status: categoryId ? "final" : "uncategorized",
+    })
     .eq("id", transactionId)
     .eq("user_id", userId);
   if (error) throw error;
@@ -284,19 +306,23 @@ export async function bulkUpdateCategory(
   const userId = await getCurrentUserId();
   const { error } = await supabase
     .from("transactions")
-    .update({ category_id: categoryId })
+    .update({
+      category_id: categoryId,
+      categorization_status: categoryId ? "final" : "uncategorized",
+    })
     .in("id", transactionIds)
     .eq("user_id", userId);
   if (error) throw error;
 }
 
-export async function bulkConfirm(transactionIds: string[]) {
+export async function finalizeTransactions(transactionIds: string[]) {
   const userId = await getCurrentUserId();
   const { error } = await supabase
     .from("transactions")
-    .update({ status: "Confirmed" })
+    .update({ categorization_status: "final" })
     .in("id", transactionIds)
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .or("category_id.not.is.null,is_split.eq.true");
   if (error) throw error;
 }
 
@@ -329,17 +355,43 @@ export async function bulkUpdateAccount(
   if (error) throw error;
 }
 
-export async function bulkUpdateStatus(
-  transactionIds: string[],
-  status: string
-) {
+export async function getCategorizationCounts(): Promise<CategorizationCounts> {
   const userId = await getCurrentUserId();
-  const { error } = await supabase
-    .from("transactions")
-    .update({ status })
-    .in("id", transactionIds)
-    .eq("user_id", userId);
-  if (error) throw error;
+
+  const countStatus = async (status: CategorizationStatus) => {
+    const { count, error } = await supabase
+      .from("transactions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("categorization_status", status)
+      .is("parent_id", null)
+      .or("external_status.is.null,external_status.neq.removed");
+    if (error) throw error;
+    return count ?? 0;
+  };
+
+  const [uncategorized, pending, final] = await Promise.all([
+    countStatus("uncategorized"),
+    countStatus("pending"),
+    countStatus("final"),
+  ]);
+
+  return { uncategorized, pending, final };
+}
+
+export async function categorizeNextTransactions() {
+  const response = await fetch("/api/transactions/categorize", {
+    method: "POST",
+  });
+  const result = (await response.json().catch(() => null)) as
+    | (CategorizationBatchResult & { error?: string })
+    | null;
+
+  if (!response.ok || !result) {
+    throw new Error(result?.error ?? "Could not categorize transactions");
+  }
+
+  return result;
 }
 
 export async function bulkUpdateDate(

@@ -1,4 +1,7 @@
-import type { TransactionFilters } from "@/lib/queries/transactions";
+import type {
+  CategorizationStatus,
+  TransactionFilters,
+} from "@/lib/queries/transactions";
 
 type ReadableSearchParams = Pick<URLSearchParams, "get" | "toString">;
 
@@ -20,10 +23,20 @@ function parseCategoryType(value: string | null) {
   return undefined;
 }
 
+function parseCategorizationStatus(
+  value: string | null
+): CategorizationStatus | undefined {
+  if (value === "uncategorized" || value === "pending" || value === "final") {
+    return value;
+  }
+  return undefined;
+}
+
 export function parseTransactionFilters(
   searchParams: ReadableSearchParams
 ): TransactionFilters {
   const uncategorized = searchParams.get("uncategorized");
+  const legacyUncategorized = uncategorized === "true" || uncategorized === "1";
 
   return {
     search: searchParams.get("search") || undefined,
@@ -31,9 +44,10 @@ export function parseTransactionFilters(
     categoryGroup: searchParams.get("categoryGroup") || undefined,
     categoryId: searchParams.get("categoryId") || undefined,
     accountId: searchParams.get("accountId") || undefined,
-    status: searchParams.get("status") || undefined,
-    uncategorizedOnly:
-      uncategorized === "true" || uncategorized === "1" || undefined,
+    status:
+      parseCategorizationStatus(searchParams.get("status")) ??
+      (legacyUncategorized ? "uncategorized" : undefined),
+    uncategorizedOnly: legacyUncategorized || undefined,
     dateFrom: searchParams.get("dateFrom") || undefined,
     dateTo: searchParams.get("dateTo") || undefined,
   };
@@ -54,8 +68,10 @@ export function updateTransactionFilterParams(
   if (filters.categoryGroup) params.set("categoryGroup", filters.categoryGroup);
   if (filters.categoryId) params.set("categoryId", filters.categoryId);
   if (filters.accountId) params.set("accountId", filters.accountId);
-  if (filters.status) params.set("status", filters.status);
-  if (filters.uncategorizedOnly) params.set("uncategorized", "true");
+  const status =
+    filters.status ??
+    (filters.uncategorizedOnly ? "uncategorized" : undefined);
+  if (status) params.set("status", status);
   if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
   if (filters.dateTo) params.set("dateTo", filters.dateTo);
 

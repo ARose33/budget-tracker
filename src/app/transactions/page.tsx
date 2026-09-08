@@ -10,7 +10,8 @@ import {
   updateTransactionNotes,
   bulkUpdateCategory,
   bulkUpdateAccount,
-  bulkUpdateStatus,
+  finalizeTransactions,
+  getCategorizationCounts,
   bulkUpdateDescription,
   bulkUpdateDate,
   deleteTransactions,
@@ -24,6 +25,7 @@ import { TransactionFiltersBar } from "@/components/transactions/transaction-fil
 import { BulkActionsBar } from "@/components/transactions/bulk-actions-bar";
 import { CategorySelect } from "@/components/transactions/category-select";
 import { SplitTransactionDialog } from "@/components/transactions/split-transaction-dialog";
+import { CategorizeTransactionsDialog } from "@/components/transactions/categorize-transactions-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -46,14 +48,13 @@ import {
   StickyNote,
   Scissors,
   AlertTriangle,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   parseTransactionFilters,
   updateTransactionFilterParams,
 } from "@/lib/transaction-filter-params";
-import { supabase } from "@/lib/supabase/client";
-import { getCurrentUserId } from "@/lib/supabase/auth";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-US", {
@@ -94,25 +95,9 @@ function TransactionsContent() {
     queryFn: () => getTransactions(page, pageSize, filters, sort),
   });
 
-  const { data: uncatData } = useQuery({
-    queryKey: ["uncategorized-count", filters.dateFrom, filters.dateTo],
-    queryFn: async () => {
-      const userId = await getCurrentUserId();
-      let query = supabase
-        .from("transactions")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .is("category_id", null)
-        .is("parent_id", null)
-        .or("is_split.is.null,is_split.eq.false")
-        .or("external_status.is.null,external_status.neq.removed");
-
-      if (filters.dateFrom) query = query.gte("date", filters.dateFrom);
-      if (filters.dateTo) query = query.lte("date", filters.dateTo);
-
-      const { count } = await query;
-      return count ?? 0;
-    },
+  const { data: categorizationCounts } = useQuery({
+    queryKey: ["categorization-counts"],
+    queryFn: getCategorizationCounts,
   });
 
   const transactions = data?.data ?? [];
@@ -138,7 +123,7 @@ function TransactionsContent() {
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["transactions"] });
-    queryClient.invalidateQueries({ queryKey: ["uncategorized-count"] });
+    queryClient.invalidateQueries({ queryKey: ["categorization-counts"] });
     queryClient.invalidateQueries({ queryKey: ["budget"] });
     queryClient.invalidateQueries({ queryKey: ["budget-uncategorized"] });
     setSelected(new Set());
@@ -194,11 +179,18 @@ function TransactionsContent() {
     },
   });
 
-  const bulkStatusMutation = useMutation({
-    mutationFn: (status: string) =>
-      bulkUpdateStatus(Array.from(selected), status),
+  const finalizeMutation = useMutation({
+    mutationFn: (transactionIds: string[]) => finalizeTransactions(transactionIds),
     onSuccess: () => {
-      toast.success(`Updated status on ${selected.size} transactions`);
+      toast.success("Marked transaction Final");
+      invalidate();
+    },
+  });
+
+  const bulkFinalizeMutation = useMutation({
+    mutationFn: () => finalizeTransactions(Array.from(selected)),
+    onSuccess: () => {
+      toast.success(`Marked ${selected.size} transactions Final`);
       invalidate();
     },
   });
@@ -233,21 +225,24 @@ function TransactionsContent() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-4">
-      <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl font-bold">Transactions</h2>
+        <CategorizeTransactionsDialog
+          uncategorizedCount={categorizationCounts?.uncategorized ?? 0}
+        />
       </div>
 
       <TransactionFiltersBar
         filters={filters}
         onChange={handleFiltersChange}
-        uncategorizedCount={uncatData}
+        statusCounts={categorizationCounts}
       />
 
       <BulkActionsBar
         selectedCount={selected.size}
         onSetCategory={(cid) => bulkCategoryMutation.mutate(cid)}
         onSetAccount={(aid) => bulkAccountMutation.mutate(aid)}
-        onSetStatus={(s) => bulkStatusMutation.mutate(s)}
+        onFinalize={() => bulkFinalizeMutation.mutate()}
         onSetDescription={(d) => bulkDescriptionMutation.mutate(d)}
         onSetDate={(d) => bulkDateMutation.mutate(d)}
         onDelete={() => deleteMutation.mutate()}
@@ -294,6 +289,7 @@ function TransactionsContent() {
                     onNotesChange={(notes) =>
                       notesMutation.mutateAsync({ id: t.id, notes })
                     }
+                    onFinalize={() => finalizeMutation.mutate([t.id])}
                     onSplitChange={invalidate}
                   />
                 ))}
@@ -414,6 +410,7 @@ function TransactionRow({
   onToggle,
   onCategoryChange,
   onNotesChange,
+  onFinalize,
   onSplitChange,
 }: {
   transaction: Transaction;
@@ -421,6 +418,7 @@ function TransactionRow({
   onToggle: () => void;
   onCategoryChange: (categoryId: string | null) => void;
   onNotesChange: (notes: string | null) => Promise<unknown>;
+  onFinalize: () => void;
   onSplitChange: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -502,12 +500,19 @@ function TransactionRow({
           variant="outline"
           className={cn(
             "text-xs",
-            t.status === "Confirmed"
-              ? "border-emerald-200 text-emerald-700"
-              : "border-yellow-200 text-yellow-700"
+            t.categorization_status === "final" &&
+              "border-emerald-200 bg-emerald-50 text-emerald-700",
+            t.categorization_status === "pending" &&
+              "border-amber-200 bg-amber-50 text-amber-700",
+            t.categorization_status === "uncategorized" &&
+              "border-slate-200 text-slate-600"
           )}
         >
-          {t.status ?? "Unknown"}
+          {t.categorization_status === "final"
+            ? "Final"
+            : t.categorization_status === "pending"
+              ? "Pending"
+              : "Uncategorized"}
         </Badge>
       </td>
       <td className="p-3 text-center">
@@ -515,6 +520,17 @@ function TransactionRow({
       </td>
       <td className="p-3 text-center">
         <div className="flex items-center justify-center gap-1">
+          {t.categorization_status === "pending" && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onFinalize}
+              aria-label="Approve category and mark Final"
+              title="Approve category and mark Final"
+            >
+              <Check className="h-4 w-4 text-emerald-600" />
+            </Button>
+          )}
           {t.is_split && (
             <Button
               variant="ghost"

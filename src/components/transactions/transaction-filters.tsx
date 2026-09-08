@@ -17,15 +17,19 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Search, X, Filter, ChevronsUpDown } from "lucide-react";
+import { Search, X, ChevronsUpDown } from "lucide-react";
 import { getCategories, type Category } from "@/lib/queries/categories";
 import { getAccounts, type Account } from "@/lib/queries/accounts";
-import type { TransactionFilters } from "@/lib/queries/transactions";
+import type {
+  CategorizationCounts,
+  CategorizationStatus,
+  TransactionFilters,
+} from "@/lib/queries/transactions";
 
 interface TransactionFiltersBarProps {
   filters: TransactionFilters;
   onChange: (filters: TransactionFilters) => void;
-  uncategorizedCount?: number;
+  statusCounts?: CategorizationCounts;
 }
 
 function getCategoryType(value: string | null | undefined) {
@@ -37,7 +41,7 @@ function getCategoryType(value: string | null | undefined) {
 export function TransactionFiltersBar({
   filters,
   onChange,
-  uncategorizedCount,
+  statusCounts,
 }: TransactionFiltersBarProps) {
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
@@ -117,6 +121,7 @@ export function TransactionFiltersBar({
       categoryType,
       categoryGroup: groupExists ? filters.categoryGroup : undefined,
       categoryId: categoryMatches ? filters.categoryId : undefined,
+      status: filters.status === "uncategorized" ? undefined : filters.status,
       uncategorizedOnly: false,
     });
   };
@@ -135,6 +140,7 @@ export function TransactionFiltersBar({
       ...filters,
       categoryGroup: groupName,
       categoryId: shouldKeepLineItem ? filters.categoryId : undefined,
+      status: filters.status === "uncategorized" ? undefined : filters.status,
       uncategorizedOnly: false,
     });
   };
@@ -148,24 +154,56 @@ export function TransactionFiltersBar({
         getCategoryType(category?.category_type) ?? filters.categoryType,
       categoryGroup: category?.group_name ?? filters.categoryGroup,
       categoryId,
+      status: filters.status === "uncategorized" ? undefined : filters.status,
       uncategorizedOnly: false,
     });
   };
 
-  const toggleUncategorizedOnly = () => {
-    const nextUncategorizedOnly = !filters.uncategorizedOnly;
-
+  const handleStatusChange = (status: CategorizationStatus | undefined) => {
     onChange({
       ...filters,
-      uncategorizedOnly: nextUncategorizedOnly,
-      categoryType: nextUncategorizedOnly ? undefined : filters.categoryType,
-      categoryGroup: nextUncategorizedOnly ? undefined : filters.categoryGroup,
-      categoryId: nextUncategorizedOnly ? undefined : filters.categoryId,
+      status,
+      uncategorizedOnly: false,
+      categoryType: status === "uncategorized" ? undefined : filters.categoryType,
+      categoryGroup: status === "uncategorized" ? undefined : filters.categoryGroup,
+      categoryId: status === "uncategorized" ? undefined : filters.categoryId,
     });
   };
 
+  const allStatusCount = statusCounts
+    ? statusCounts.uncategorized + statusCounts.pending + statusCounts.final
+    : undefined;
+
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="mr-1 text-sm font-medium text-muted-foreground">
+          Review status
+        </span>
+        {(
+          [
+            [undefined, "All", allStatusCount],
+            ["uncategorized", "Uncategorized", statusCounts?.uncategorized],
+            ["pending", "Pending", statusCounts?.pending],
+            ["final", "Final", statusCounts?.final],
+          ] as const
+        ).map(([status, label, count]) => (
+          <Button
+            key={label}
+            type="button"
+            variant={filters.status === status ? "default" : "outline"}
+            size="sm"
+            onClick={() => handleStatusChange(status)}
+          >
+            {label}
+            {count != null && (
+              <Badge variant="secondary" className="ml-1.5">
+                {count.toLocaleString()}
+              </Badge>
+            )}
+          </Button>
+        ))}
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -212,19 +250,6 @@ export function TransactionFiltersBar({
           className="w-[150px]"
           placeholder="To"
         />
-        <Button
-          variant={filters.uncategorizedOnly ? "default" : "outline"}
-          size="sm"
-          onClick={toggleUncategorizedOnly}
-        >
-          <Filter className="h-3.5 w-3.5 mr-1" />
-          Uncategorized
-          {uncategorizedCount != null && (
-            <Badge variant="secondary" className="ml-1.5">
-              {uncategorizedCount.toLocaleString()}
-            </Badge>
-          )}
-        </Button>
         {hasFilters && (
           <Button
             variant="ghost"

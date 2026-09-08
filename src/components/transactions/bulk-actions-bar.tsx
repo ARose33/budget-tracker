@@ -5,13 +5,6 @@ import { Input } from "@/components/ui/input";
 import { CategorySelect } from "./category-select";
 import { AccountSelect } from "./account-select";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   CheckCircle,
   Trash2,
   Tag,
@@ -23,13 +16,13 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-type EditMode = null | "category" | "account" | "status" | "description" | "date";
+type EditMode = null | "category" | "account" | "description" | "date";
 
 interface BulkActionsBarProps {
   selectedCount: number;
   onSetCategory: (categoryId: string | null) => void;
   onSetAccount: (accountId: string) => void;
-  onSetStatus: (status: string) => void;
+  onFinalize: () => void;
   onSetDescription: (description: string) => void;
   onSetDate: (date: string) => void;
   onDelete: () => void;
@@ -40,7 +33,7 @@ export function BulkActionsBar({
   selectedCount,
   onSetCategory,
   onSetAccount,
-  onSetStatus,
+  onFinalize,
   onSetDescription,
   onSetDate,
   onDelete,
@@ -93,31 +86,6 @@ export function BulkActionsBar({
             placeholder="Pick account"
             className="w-[220px]"
           />
-          <Button variant="ghost" size="sm" onClick={cancelEdit}>
-            <X className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      )}
-
-      {editMode === "status" && (
-        <div className="flex items-center gap-2">
-          <Select
-            onValueChange={(v) => {
-              if (v) {
-                onSetStatus(v as string);
-                cancelEdit();
-              }
-            }}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Pick status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Confirmed">Confirmed</SelectItem>
-              <SelectItem value="Unconfirmed">Unconfirmed</SelectItem>
-              <SelectItem value="Pending">Pending</SelectItem>
-            </SelectContent>
-          </Select>
           <Button variant="ghost" size="sm" onClick={cancelEdit}>
             <X className="h-3.5 w-3.5" />
           </Button>
@@ -199,10 +167,10 @@ export function BulkActionsBar({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setEditMode("status")}
+            onClick={onFinalize}
           >
             <CheckCircle className="h-3.5 w-3.5 mr-1" />
-            Status
+            Mark Final
           </Button>
           <Button
             variant="outline"
