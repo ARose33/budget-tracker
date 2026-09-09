@@ -39,7 +39,13 @@ function formatCurrency(amount: number) {
 export default function CashFlowPage() {
   const [months, setMonths] = useState("12");
 
-  const { data: raw = [], isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: raw = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["cash-flow", months],
     queryFn: () => getCashFlow(Number(months)),
   });
@@ -59,12 +65,25 @@ export default function CashFlowPage() {
     chartData.length > 0
       ? chartData.reduce((s, d) => s + d.Expenses, 0) / chartData.length
       : 0;
-  const savingsRate = avgIncome > 0 ? ((avgIncome - avgExpenses) / avgIncome) * 100 : 0;
+  const savingsRate =
+    avgIncome > 0 ? ((avgIncome - avgExpenses) / avgIncome) * 100 : 0;
 
-  if (isError) return <div role="alert" className="rounded border p-6">Analysis could not be loaded. {saveError(error)} <Button variant="outline" onClick={() => refetch()}>Retry</Button></div>;
+  if (isError)
+    return (
+      <div role="alert" className="rounded border p-6">
+        Analysis could not be loaded. {saveError(error)}{" "}
+        <Button variant="outline" onClick={() => refetch()}>
+          Retry
+        </Button>
+      </div>
+    );
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <p className="text-xs text-muted-foreground">All accounts · USD · Posted category activity with refunds netted. Transfers and uncategorized transactions are excluded. The current month is partial.</p>
+      <p className="text-xs text-muted-foreground">
+        All accounts · USD · Posted category activity with refunds netted.
+        Transfers and uncategorized transactions are excluded. The current month
+        is partial.
+      </p>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl font-bold">Cash Flow</h2>
         <Select value={months} onValueChange={(v) => v && setMonths(v)}>
@@ -124,9 +143,7 @@ export default function CashFlowPage() {
                   tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
                   tick={{ fontSize: 12 }}
                 />
-                <Tooltip
-                  formatter={(value) => formatCurrency(Number(value))}
-                />
+                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                 <Legend />
                 <Bar dataKey="Income" fill="#10b981" />
                 <Bar dataKey="Expenses" fill="#ef4444" />

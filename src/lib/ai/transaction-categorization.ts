@@ -25,7 +25,9 @@ export interface CategorizationAssignment {
 }
 
 /** The RPC JSON record names are deliberately different from the model schema. */
-export function serializeCategorizationAssignments(assignments: CategorizationAssignment[]) {
+export function serializeCategorizationAssignments(
+  assignments: CategorizationAssignment[],
+) {
   return assignments.map(({ transactionId, categoryId }) => ({
     transaction_id: transactionId,
     category_id: categoryId,
@@ -34,7 +36,9 @@ export function serializeCategorizationAssignments(assignments: CategorizationAs
 
 export async function applyCategorizationAssignments(
   assignments: CategorizationAssignment[],
-  write: (items: ReturnType<typeof serializeCategorizationAssignments>) => Promise<number>
+  write: (
+    items: ReturnType<typeof serializeCategorizationAssignments>,
+  ) => Promise<number>,
 ) {
   if (assignments.length === 0) return 0;
   return write(serializeCategorizationAssignments(assignments));
@@ -42,7 +46,7 @@ export async function applyCategorizationAssignments(
 
 export function selectRepresentativeExamples(
   examples: CategorizationExample[],
-  perCategory = 3
+  perCategory = 3,
 ) {
   const selected: CategorizationExample[] = [];
   const categoryCounts = new Map<string, number>();
@@ -61,7 +65,7 @@ export function selectRepresentativeExamples(
 export function validateCategorizationAssignments(
   assignments: CategorizationAssignment[],
   candidateIds: Iterable<string>,
-  categoryIds: Iterable<string>
+  categoryIds: Iterable<string>,
 ) {
   const allowedCandidates = new Set(candidateIds);
   const allowedCategories = new Set(categoryIds);

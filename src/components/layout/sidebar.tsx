@@ -16,7 +16,12 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useState } from "react";
 
 const navSections: {
@@ -38,7 +43,11 @@ const navSections: {
   {
     label: "Analysis",
     items: [
-      { href: "/analysis/spending", label: "Spending Trends", icon: TrendingUp },
+      {
+        href: "/analysis/spending",
+        label: "Spending Trends",
+        icon: TrendingUp,
+      },
       { href: "/analysis/cashflow", label: "Cash Flow", icon: DollarSign },
       { href: "/analysis/yoy", label: "Year over Year", icon: CalendarRange },
     ],
@@ -59,7 +68,11 @@ function NavLinks({ onClick }: { onClick?: () => void }) {
 
   return (
     <nav className="flex flex-col gap-6 px-4 py-6 h-full">
-      <Link href="/budget" onClick={onClick} className="flex items-center gap-2.5 px-2">
+      <Link
+        href="/budget"
+        onClick={onClick}
+        className="flex items-center gap-2.5 px-2"
+      >
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 shadow-lg shadow-emerald-500/30">
           <Wallet className="h-5 w-5 text-white" />
         </div>
@@ -92,7 +105,7 @@ function NavLinks({ onClick }: { onClick?: () => void }) {
                     "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
                     isActive
                       ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                   )}
                 >
                   {isActive && (
@@ -103,7 +116,7 @@ function NavLinks({ onClick }: { onClick?: () => void }) {
                       "h-4 w-4 transition-colors",
                       isActive
                         ? "text-sidebar-primary"
-                        : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80"
+                        : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80",
                     )}
                   />
                   <span className="flex-1">{item.label}</span>
@@ -150,10 +163,16 @@ export function MobileNav() {
   return (
     <div className="md:hidden flex items-center border-b bg-background/80 backdrop-blur px-4 py-3 sticky top-0 z-30">
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger aria-label="Open navigation" className="inline-flex items-center justify-center rounded-md h-9 w-9 hover:bg-accent hover:text-accent-foreground transition-colors">
+        <SheetTrigger
+          aria-label="Open navigation"
+          className="inline-flex items-center justify-center rounded-md h-9 w-9 hover:bg-accent hover:text-accent-foreground transition-colors"
+        >
           <Menu className="h-5 w-5" />
         </SheetTrigger>
-        <SheetContent side="left" className="w-64 p-0 bg-sidebar text-sidebar-foreground border-sidebar-border">
+        <SheetContent
+          side="left"
+          className="w-64 p-0 bg-sidebar text-sidebar-foreground border-sidebar-border"
+        >
           <SheetTitle className="sr-only">StackMint navigation</SheetTitle>
           <NavLinks onClick={() => setOpen(false)} />
         </SheetContent>

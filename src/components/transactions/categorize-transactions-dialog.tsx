@@ -68,7 +68,9 @@ export function CategorizeTransactionsDialog({
   };
 
   const startCategorizing = async () => {
-    const initialTotal = hasStarted ? progress.processed + progress.remaining : uncategorizedCount;
+    const initialTotal = hasStarted
+      ? progress.processed + progress.remaining
+      : uncategorizedCount;
     let processed = hasStarted ? progress.processed : 0;
     let remaining = hasStarted ? progress.remaining : uncategorizedCount;
 
@@ -90,21 +92,27 @@ export function CategorizeTransactionsDialog({
         if (result.done) break;
         if (result.processed === 0) {
           throw new Error(
-            "The next batch could not be categorized. The remaining transactions were left unchanged."
+            "The next batch could not be categorized. The remaining transactions were left unchanged.",
           );
         }
       }
 
       if (remaining === 0) {
-        toast.success(`Categorized ${processed.toLocaleString()} transactions for review`);
+        toast.success(
+          `Categorized ${processed.toLocaleString()} transactions for review`,
+        );
         setOpen(false);
       } else if (stopRequested.current) {
-        toast.info(`Stopped with ${remaining.toLocaleString()} transactions remaining`);
+        toast.info(
+          `Stopped with ${remaining.toLocaleString()} transactions remaining`,
+        );
         setOpen(false);
       }
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not categorize transactions"
+        error instanceof Error
+          ? error.message
+          : "Could not categorize transactions",
       );
     } finally {
       setIsRunning(false);
@@ -155,9 +163,11 @@ export function CategorizeTransactionsDialog({
             </div>
           ) : (
             <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
-              OpenAI receives only the transaction description, amount, account name,
-              available categories, and representative Final examples. Notes and identity
-              fields are excluded. Descriptions and account names may still contain personal information. Bank-pending activity is excluded until posted.
+              OpenAI receives only the transaction description, amount, account
+              name, available categories, and representative Final examples.
+              Notes and identity fields are excluded. Descriptions and account
+              names may still contain personal information. Bank-pending
+              activity is excluded until posted.
             </div>
           )}
 
@@ -181,7 +191,11 @@ export function CategorizeTransactionsDialog({
               </Button>
             ) : (
               <>
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button type="button" onClick={startCategorizing}>

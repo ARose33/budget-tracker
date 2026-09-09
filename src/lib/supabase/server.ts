@@ -24,7 +24,7 @@ export async function createServerClient() {
           }
         },
       },
-    }
+    },
   );
 }
 
@@ -32,12 +32,12 @@ export function createServiceRoleClient() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceRoleKey) {
     throw new Error(
-      "Missing SUPABASE_SERVICE_ROLE_KEY. Plaid sync needs the server-only Supabase service role key to save bank connections, accounts, and transactions."
+      "Missing SUPABASE_SERVICE_ROLE_KEY. Plaid sync needs the server-only Supabase service role key to save bank connections, accounts, and transactions.",
     );
   }
 
   return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceRoleKey
+    serviceRoleKey,
   );
 }

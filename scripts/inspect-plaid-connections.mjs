@@ -20,7 +20,7 @@ function parseEnv() {
           .map((line) => {
             const index = line.indexOf("=");
             return [line.slice(0, index), line.slice(index + 1)];
-          })
+          }),
       )
     : {};
 
@@ -29,7 +29,9 @@ function parseEnv() {
 
 function requiredEnv(env, name) {
   if (!env[name]) {
-    throw new Error(`Missing ${name}. Add it to .env.local or the environment.`);
+    throw new Error(
+      `Missing ${name}. Add it to .env.local or the environment.`,
+    );
   }
   return env[name];
 }
@@ -61,9 +63,11 @@ async function resolveUserId(supabase, explicitUserId) {
   if (explicitUserId) return explicitUserId;
 
   const accounts = await fetchAll(() =>
-    supabase.from("accounts").select("user_id").not("user_id", "is", null)
+    supabase.from("accounts").select("user_id").not("user_id", "is", null),
   );
-  const userIds = [...new Set(accounts.map((row) => row.user_id).filter(Boolean))];
+  const userIds = [
+    ...new Set(accounts.map((row) => row.user_id).filter(Boolean)),
+  ];
   if (userIds.length === 1) return userIds[0];
   throw new Error(`Pass --user-id=<uuid>. Found ${userIds.length} user ids.`);
 }
@@ -83,7 +87,7 @@ function createPlaidClient(env) {
           "PLAID-SECRET": requiredEnv(env, "PLAID_SECRET"),
         },
       },
-    })
+    }),
   );
 }
 
@@ -95,11 +99,13 @@ async function main() {
   const env = parseEnv();
   const supabase = createClient(
     requiredEnv(env, "NEXT_PUBLIC_SUPABASE_URL"),
-    requiredEnv(env, "SUPABASE_SERVICE_ROLE_KEY")
+    requiredEnv(env, "SUPABASE_SERVICE_ROLE_KEY"),
   );
   const userId = await resolveUserId(
     supabase,
-    getCliValue("user-id") || env.ACCOUNT_MERGE_USER_ID || env.CHASE_IMPORT_USER_ID
+    getCliValue("user-id") ||
+      env.ACCOUNT_MERGE_USER_ID ||
+      env.CHASE_IMPORT_USER_ID,
   );
   const institution = getCliValue("institution");
   const plaid = createPlaidClient(env);
@@ -107,14 +113,17 @@ async function main() {
   let connectionQuery = supabase
     .from("bank_connections")
     .select(
-      "id, provider_enrollment_id, access_token, institution_name, institution_id, status, last_synced_at, user_id"
+      "id, provider_enrollment_id, access_token, institution_name, institution_id, status, last_synced_at, user_id",
     )
     .eq("provider", PROVIDER)
     .eq("user_id", userId)
     .order("institution_name");
 
   if (institution) {
-    connectionQuery = connectionQuery.ilike("institution_name", `%${institution}%`);
+    connectionQuery = connectionQuery.ilike(
+      "institution_name",
+      `%${institution}%`,
+    );
   }
 
   const { data: connections, error: connectionError } = await connectionQuery;
@@ -124,18 +133,18 @@ async function main() {
     supabase
       .from("accounts")
       .select(
-        "id, name, institution, type, current_balance, external_account_id, connection_provider, hidden, last_synced_at"
+        "id, name, institution, type, current_balance, external_account_id, connection_provider, hidden, last_synced_at",
       )
       .eq("user_id", userId)
-      .eq("connection_provider", PROVIDER)
+      .eq("connection_provider", PROVIDER),
   );
   const accountsByExternalId = new Map(
-    accounts.map((account) => [account.external_account_id, account])
+    accounts.map((account) => [account.external_account_id, account]),
   );
 
   for (const connection of connections ?? []) {
     console.log(
-      `Connection ${shortId(connection.id)} | ${connection.institution_name ?? "Unknown"} | ${connection.status} | synced ${connection.last_synced_at ?? "never"}`
+      `Connection ${shortId(connection.id)} | ${connection.institution_name ?? "Unknown"} | ${connection.status} | synced ${connection.last_synced_at ?? "never"}`,
     );
 
     let response;
@@ -147,7 +156,7 @@ async function main() {
       const plaidError = error?.response?.data;
       if (plaidError?.error_code) {
         console.log(
-          `- Plaid error ${plaidError.error_code}: ${plaidError.error_message}`
+          `- Plaid error ${plaidError.error_code}: ${plaidError.error_message}`,
         );
         continue;
       }
@@ -160,7 +169,7 @@ async function main() {
         ? `${shortId(local.id)} ${local.name} (${local.type ?? "unknown"})`
         : "no local row";
       console.log(
-        `- ${accountDisplayName(plaidAccount)} | Plaid ${shortId(plaidAccount.account_id)} | local ${localLabel}`
+        `- ${accountDisplayName(plaidAccount)} | Plaid ${shortId(plaidAccount.account_id)} | local ${localLabel}`,
       );
     }
   }

@@ -5,7 +5,12 @@ import { PGlite } from "@electric-sql/pglite";
 // filesystem data directory, or production client.
 export async function createTestDatabase() {
   const db = new PGlite();
-  await db.exec(await fs.readFile(new URL("../fixtures/schema.sql", import.meta.url), "utf8"));
+  await db.exec(
+    await fs.readFile(
+      new URL("../fixtures/schema.sql", import.meta.url),
+      "utf8",
+    ),
+  );
   return db;
 }
 export const userA = "10000000-0000-4000-8000-000000000001";

@@ -1,5 +1,10 @@
-import { requireExistingDataOperation, assertOperationTarget } from "./lib/operator-safety.mjs";
-const operationPlan = requireExistingDataOperation("retire-connection",{write:process.argv.includes("--commit")});
+import {
+  requireExistingDataOperation,
+  assertOperationTarget,
+} from "./lib/operator-safety.mjs";
+const operationPlan = requireExistingDataOperation("retire-connection", {
+  write: process.argv.includes("--commit"),
+});
 import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
@@ -41,7 +46,7 @@ function parseEnv() {
                 ? rawValue.slice(1, -1)
                 : rawValue;
             return [key, value];
-          })
+          }),
       )
     : {};
 
@@ -80,10 +85,7 @@ async function fetchAll(makeQuery) {
   const rows = [];
   const pageSize = 1000;
   for (let from = 0; ; from += pageSize) {
-    const { data, error } = await makeQuery().range(
-      from,
-      from + pageSize - 1
-    );
+    const { data, error } = await makeQuery().range(from, from + pageSize - 1);
     if (error) throw error;
     rows.push(...(data ?? []));
     if (!data || data.length < pageSize) break;
@@ -103,7 +105,7 @@ async function main() {
 
   const supabase = createClient(
     requiredEnv(env, "NEXT_PUBLIC_SUPABASE_URL"),
-    requiredEnv(env, "SUPABASE_SERVICE_ROLE_KEY")
+    requiredEnv(env, "SUPABASE_SERVICE_ROLE_KEY"),
   );
   const plaidEnvironment = requiredEnv(env, "PLAID_ENV");
   if (!["sandbox", "production"].includes(plaidEnvironment)) {
@@ -118,14 +120,12 @@ async function main() {
           "PLAID-SECRET": requiredEnv(env, "PLAID_SECRET"),
         },
       },
-    })
+    }),
   );
 
   const { data: connection, error: connectionError } = await supabase
     .from("bank_connections")
-    .select(
-      "id, access_token, institution_name, provider, status, user_id"
-    )
+    .select("id, access_token, institution_name, provider, status, user_id")
     .eq("id", connectionId)
     .eq("provider", PROVIDER)
     .single();
@@ -134,12 +134,16 @@ async function main() {
     throw new Error("Connection is missing user_id.");
   }
 
-  assertOperationTarget(operationPlan, env.NEXT_PUBLIC_SUPABASE_URL, connection.user_id);
+  assertOperationTarget(
+    operationPlan,
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    connection.user_id,
+  );
   const plaidResponse = await plaid.accountsGet({
     access_token: connection.access_token,
   });
   const externalIds = plaidResponse.data.accounts.map(
-    (account) => account.account_id
+    (account) => account.account_id,
   );
   const sourceAccounts = await fetchAll(() =>
     supabase
@@ -147,14 +151,14 @@ async function main() {
       .select("id, name, institution, type, external_account_id, hidden")
       .eq("user_id", connection.user_id)
       .eq("connection_provider", PROVIDER)
-      .in("external_account_id", externalIds)
+      .in("external_account_id", externalIds),
   );
   const allPlaidAccounts = await fetchAll(() =>
     supabase
       .from("accounts")
       .select("id, name, institution, type, external_account_id, hidden")
       .eq("user_id", connection.user_id)
-      .eq("connection_provider", PROVIDER)
+      .eq("connection_provider", PROVIDER),
   );
   const sourceIds = new Set(sourceAccounts.map((account) => account.id));
   const mappings = sourceAccounts.map((source) => {
@@ -163,11 +167,11 @@ async function main() {
         !sourceIds.has(candidate.id) &&
         normalize(candidate.institution) === normalize(source.institution) &&
         normalize(candidate.name) === normalize(source.name) &&
-        candidate.type === source.type
+        candidate.type === source.type,
     );
     if (candidates.length !== 1) {
       throw new Error(
-        `${source.name}: expected one retained account, found ${candidates.length}.`
+        `${source.name}: expected one retained account, found ${candidates.length}.`,
       );
     }
     return { source, target: candidates[0] };
@@ -182,7 +186,7 @@ async function main() {
       .from("transactions")
       .select("id, account_id, amount, date, parent_id, external_status")
       .eq("user_id", connection.user_id)
-      .in("account_id", accountIds)
+      .in("account_id", accountIds),
   );
 
   let visibleSourceTransactions = 0;
@@ -191,48 +195,65 @@ async function main() {
       (transaction) =>
         transaction.account_id === source.id &&
         !transaction.parent_id &&
-        transaction.external_status !== REMOVED
+        transaction.external_status !== REMOVED,
     );
     const targetTransactions = transactions.filter(
       (transaction) =>
         transaction.account_id === target.id &&
         !transaction.parent_id &&
-        transaction.external_status !== REMOVED
+        transaction.external_status !== REMOVED,
     );
     const unmatched = sourceTransactions.filter(
       (sourceTransaction) =>
         !targetTransactions.some((targetTransaction) =>
-          isMatchingTransaction(sourceTransaction, targetTransaction)
-        )
+          isMatchingTransaction(sourceTransaction, targetTransaction),
+        ),
     );
     visibleSourceTransactions += sourceTransactions.length;
     console.log(
-      `${source.name}: ${sourceTransactions.length} duplicate transactions, ${unmatched.length} unmatched`
+      `${source.name}: ${sourceTransactions.length} duplicate transactions, ${unmatched.length} unmatched`,
     );
   }
 
   console.log(
     `${commit ? "Commit" : "Dry run"}: retire ${
       connection.institution_name ?? connection.id
-    }; preserve ${sourceAccounts.length} accounts and ${visibleSourceTransactions} visible transactions`
+    }; preserve ${sourceAccounts.length} accounts and ${visibleSourceTransactions} visible transactions`,
   );
 
   if (!commit) return;
-  const lease = await supabase.rpc("stackmint_begin_disconnect", { p_connection_id:connection.id,p_user_id:connection.user_id });
-  if(lease.error)throw new Error("Connection is busy or unavailable.");
-  if(!lease.data)return;
+  const lease = await supabase.rpc("stackmint_begin_disconnect", {
+    p_connection_id: connection.id,
+    p_user_id: connection.user_id,
+  });
+  if (lease.error) throw new Error("Connection is busy or unavailable.");
+  if (!lease.data) return;
   try {
-    await plaid.itemRemove({access_token:connection.access_token});
-    const saved=await supabase.from("bank_connections").update({status:"disconnected"}).eq("id",connection.id).eq("user_id",connection.user_id);
-    if(saved.error)throw new Error("Could not persist disconnect result.");
+    await plaid.itemRemove({ access_token: connection.access_token });
+    const saved = await supabase
+      .from("bank_connections")
+      .update({ status: "disconnected" })
+      .eq("id", connection.id)
+      .eq("user_id", connection.user_id);
+    if (saved.error) throw new Error("Could not persist disconnect result.");
   } catch {
-    await supabase.from("bank_connections").update({status:"disconnect_failed"}).eq("id",connection.id).eq("user_id",connection.user_id);
-    throw new Error("Disconnect result requires retry. Ledger records are retained and automatic sync is paused.");
+    await supabase
+      .from("bank_connections")
+      .update({ status: "disconnect_failed" })
+      .eq("id", connection.id)
+      .eq("user_id", connection.user_id);
+    throw new Error(
+      "Disconnect result requires retry. Ledger records are retained and automatic sync is paused.",
+    );
   }
-  console.log("Provider disconnected; accounts, transactions and identifiers retained.");
+  console.log(
+    "Provider disconnected; accounts, transactions and identifiers retained.",
+  );
 }
 
 main().catch(() => {
-  console.error("Operator command failed. Inspect the protected operation report; no error payload is logged.");
+  console.error(
+    "Operator command failed. Inspect the protected operation report; no error payload is logged.",
+  );
   process.exit(1);
 });

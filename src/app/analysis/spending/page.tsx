@@ -30,15 +30,29 @@ import { Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
 const COLORS = [
-  "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4",
-  "#ec4899", "#f97316", "#14b8a6", "#6366f1", "#84cc16",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#06b6d4",
+  "#ec4899",
+  "#f97316",
+  "#14b8a6",
+  "#6366f1",
+  "#84cc16",
 ];
 
 export default function SpendingPage() {
   const [months, setMonths] = useState("12");
   const [granularity, setGranularity] = useState<SpendingGranularity>("group");
 
-  const { data: raw = [], isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: raw = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["spending-by-month", months, granularity],
     queryFn: () => getSpendingByMonth(Number(months), granularity),
   });
@@ -51,19 +65,33 @@ export default function SpendingPage() {
       (acc, r) => {
         const key = `${r.year_num}-${String(r.month_num).padStart(2, "0")}`;
         if (!acc[key]) {
-          acc[key] = { month: format(new Date(r.year_num, r.month_num - 1), "MMM yy") };
+          acc[key] = {
+            month: format(new Date(r.year_num, r.month_num - 1), "MMM yy"),
+          };
         }
         acc[key][r.category_label] = Number(r.total);
         return acc;
       },
-      {} as Record<string, Record<string, string | number>>
-    )
+      {} as Record<string, Record<string, string | number>>,
+    ),
   );
 
-  if (isError) return <div role="alert" className="rounded border p-6">Analysis could not be loaded. {saveError(error)} <Button variant="outline" onClick={() => refetch()}>Retry</Button></div>;
+  if (isError)
+    return (
+      <div role="alert" className="rounded border p-6">
+        Analysis could not be loaded. {saveError(error)}{" "}
+        <Button variant="outline" onClick={() => refetch()}>
+          Retry
+        </Button>
+      </div>
+    );
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <p className="text-xs text-muted-foreground">All accounts · USD · Posted category activity with refunds netted. Transfers and uncategorized transactions are excluded. The current month is partial.</p>
+      <p className="text-xs text-muted-foreground">
+        All accounts · USD · Posted category activity with refunds netted.
+        Transfers and uncategorized transactions are excluded. The current month
+        is partial.
+      </p>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl font-bold">Spending Trends</h2>
         <div className="flex items-center gap-2">

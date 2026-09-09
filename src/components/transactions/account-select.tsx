@@ -38,13 +38,16 @@ export function AccountSelect({
       acc[type].push(a);
       return acc;
     },
-    {} as Record<string, typeof visibleAccounts>
+    {} as Record<string, typeof visibleAccounts>,
   );
 
   return (
     <Select value={value ?? ""} onValueChange={(v) => v && onValueChange(v)}>
       <SelectTrigger className={className}>
-        <SelectValue placeholder={placeholder}>{accounts.find(account => account.id === value)?.name ?? (value ? "Historical account" : placeholder)}</SelectValue>
+        <SelectValue placeholder={placeholder}>
+          {accounts.find((account) => account.id === value)?.name ??
+            (value ? "Historical account" : placeholder)}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         {Object.entries(grouped).map(([type, accts]) => (

@@ -60,7 +60,11 @@ function expandYear(value) {
 }
 
 function namedDate(monthName, day, year) {
-  return isoDate(expandYear(year), MONTHS[monthName.toLowerCase()], Number(day));
+  return isoDate(
+    expandYear(year),
+    MONTHS[monthName.toLowerCase()],
+    Number(day),
+  );
 }
 
 function numericDate(month, day, year) {
@@ -102,7 +106,10 @@ function normalizedMatchDescription(value) {
     .toLowerCase()
     .replace(/&amp;/g, "and")
     .replace(/&/g, "and")
-    .replace(/\b(?:auth(?:orization)?|confirmation|reference|transaction|trace|card)\s*(?:date|number|no|#)?\s*[:#-]?\s*[a-z0-9-]+\b/gi, " ")
+    .replace(
+      /\b(?:auth(?:orization)?|confirmation|reference|transaction|trace|card)\s*(?:date|number|no|#)?\s*[:#-]?\s*[a-z0-9-]+\b/gi,
+      " ",
+    )
     .replace(/\b\d{4,}\b/g, " ")
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
@@ -124,7 +131,7 @@ function rowId(row) {
       row.statementFile,
       row.page ?? "",
       row.rowReference ?? "",
-    ].join("|")
+    ].join("|"),
   );
 }
 
@@ -151,7 +158,8 @@ function makeTransaction(base, input) {
 }
 
 function inferYearForMonth(month, periodStart, periodEnd) {
-  if (!periodStart || !periodEnd) return Number(periodEnd?.slice(0, 4) ?? periodStart?.slice(0, 4));
+  if (!periodStart || !periodEnd)
+    return Number(periodEnd?.slice(0, 4) ?? periodStart?.slice(0, 4));
   const startYear = Number(periodStart.slice(0, 4));
   const endYear = Number(periodEnd.slice(0, 4));
   if (startYear === endYear) return startYear;
@@ -161,7 +169,7 @@ function inferYearForMonth(month, periodStart, periodEnd) {
 
 function parsePeriod(text) {
   const numeric = text.match(
-    /(?:Opening\/?Closing Date\s*)?(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s*(?:-|–|—|through|to)\s*(\d{1,2})\/(\d{1,2})\/(\d{2,4})/i
+    /(?:Opening\/?Closing Date\s*)?(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s*(?:-|–|—|through|to)\s*(\d{1,2})\/(\d{1,2})\/(\d{2,4})/i,
   );
   if (numeric) {
     return {
@@ -173,8 +181,8 @@ function parsePeriod(text) {
   const named = text.match(
     new RegExp(
       `(${MONTH_NAME})\\s+(\\d{1,2}),?\\s+(20\\d{2})\\s*(?:-|–|—|through|to)\\s*(${MONTH_NAME})\\s+(\\d{1,2}),?\\s+(20\\d{2})`,
-      "i"
-    )
+      "i",
+    ),
   );
   if (named) {
     return {
@@ -186,8 +194,8 @@ function parsePeriod(text) {
   const statementPeriod = text.match(
     new RegExp(
       `STATEMENT PERIOD\\s*(${MONTH_NAME})\\s+(\\d{1,2})\\s*(?:-|–|—|through|to)\\s*(${MONTH_NAME})\\s+(\\d{1,2}),?\\s+(20\\d{2})`,
-      "i"
-    )
+      "i",
+    ),
   );
   if (statementPeriod) {
     const endMonth = MONTHS[statementPeriod[3].toLowerCase()];
@@ -201,7 +209,7 @@ function parsePeriod(text) {
   }
 
   const balanceDates = text.match(
-    /Beginning Balance(?:,)?\s*(?:as of\s*)?(\d{1,2})\/(\d{1,2})\/(\d{2,4})[\s\S]{0,1200}?Ending Balance(?:,)?\s*(?:as of\s*)?(\d{1,2})\/(\d{1,2})\/(\d{2,4})/i
+    /Beginning Balance(?:,)?\s*(?:as of\s*)?(\d{1,2})\/(\d{1,2})\/(\d{2,4})[\s\S]{0,1200}?Ending Balance(?:,)?\s*(?:as of\s*)?(\d{1,2})\/(\d{1,2})\/(\d{2,4})/i,
   );
   if (balanceDates) {
     return {
@@ -216,12 +224,19 @@ function parsePeriod(text) {
 function detectParser(folder, text) {
   const lowerFolder = folder.toLowerCase();
   if (lowerFolder.includes("ally")) return "ally_combined_deposit";
-  if (lowerFolder.includes("cap1 savings")) return "capital_one_combined_deposit";
+  if (lowerFolder.includes("cap1 savings"))
+    return "capital_one_combined_deposit";
   if (lowerFolder.includes("grasshopper")) return "grasshopper_deposit";
-  if (lowerFolder.includes("chase checking") || lowerFolder.includes("chase savings")) {
+  if (
+    lowerFolder.includes("chase checking") ||
+    lowerFolder.includes("chase savings")
+  ) {
     return "chase_deposit";
   }
-  if (lowerFolder.includes("chase freedom") || lowerFolder.includes("chase reserve")) {
+  if (
+    lowerFolder.includes("chase freedom") ||
+    lowerFolder.includes("chase reserve")
+  ) {
     return "chase_credit_card";
   }
   if (lowerFolder.includes("quicksilver") || /capital one/i.test(text)) {
@@ -248,13 +263,17 @@ function accountKey(institution, type, last4) {
 function appendContinuation(pending, line) {
   if (!pending) return;
   const text = normalizeDescription(line.text);
-  if (!text || /^(?:Page \d+|Account Number|Statement Date|Customer Service)/i.test(text)) return;
+  if (
+    !text ||
+    /^(?:Page \d+|Account Number|Statement Date|Customer Service)/i.test(text)
+  )
+    return;
   if (
     /\bPage \d+ of \d+\b|\bStatement Date:|\bFIS\d+\b|ACCOUNT ACTIVITY(?: \(CONTINUED\))?/i.test(
-      text
+      text,
     ) ||
     /\bPage\s*:\s*\d+\s+of\s+\d+\b|\bM\d{6}S\d+\b|ROSE RESIDENCES|Transaction Detail \(Continued\)|Date Description Deposits Withdrawals Balance/i.test(
-      text
+      text,
     ) ||
     /^(?:Date of|Transaction|Post Date|Description|Amount)$/i.test(text)
   ) {
@@ -262,10 +281,10 @@ function appendContinuation(pending, line) {
   }
   if (
     /^(?:Fees Summary|Summary|Earnings Summary|Overdraft|Interest Charge Calculation|Ending Balance|\*end\*|Page \d+)/i.test(
-      text
+      text,
     ) ||
     /Totals Year-to-Date|Total Transactions|Total Fees|Total Interest|Additional Information on the next page|Billing Cycle Transactions \(Continued\)|Trans Date Post Date Description Amount/i.test(
-      text
+      text,
     )
   ) {
     return;
@@ -282,7 +301,9 @@ function parseCapitalOneDeposit(document, base) {
     for (let index = 0; index < page.lines.length; index += 1) {
       const line = page.lines[index];
       const text = cleanText(line.text);
-      const accountHeader = text.match(/^(Cap1 Check|360 Performance Savings).*?(\d{4})\s*$/i);
+      const accountHeader = text.match(
+        /^(Cap1 Check|360 Performance Savings).*?(\d{4})\s*$/i,
+      );
       if (accountHeader) {
         currentAccount = accountHeader[1].toLowerCase().includes("saving")
           ? accountKey("capital_one", "savings", accountHeader[2])
@@ -292,7 +313,10 @@ function parseCapitalOneDeposit(document, base) {
       if (!currentAccount) continue;
 
       const row = text.match(
-        new RegExp(`^(${MONTH_NAME})\\s+(\\d{1,2})\\s*(.*)\\s+(Debit|Credit)\\s*(.*)$`, "i")
+        new RegExp(
+          `^(${MONTH_NAME})\\s+(\\d{1,2})\\s*(.*)\\s+(Debit|Credit)\\s*(.*)$`,
+          "i",
+        ),
       );
       if (!row || /^(Opening|Closing) Balance$/i.test(row[3])) continue;
       const values = moneyValues(row[5]);
@@ -302,7 +326,11 @@ function parseCapitalOneDeposit(document, base) {
       if (!amountToken && values.length === 1) {
         // Large transfers sometimes wrap the signed amount to the following
         // line, leaving only the running balance on the dated line.
-        for (let offset = 1; offset <= 2 && index + offset < page.lines.length; offset += 1) {
+        for (
+          let offset = 1;
+          offset <= 2 && index + offset < page.lines.length;
+          offset += 1
+        ) {
           const continuation = cleanText(page.lines[index + offset].text);
           if (/^[+-]$/.test(continuation)) {
             lookAheadEnd = index + offset;
@@ -313,7 +341,7 @@ function parseCapitalOneDeposit(document, base) {
             amountToken = continuationValues[0];
             lookAheadEnd = index + offset;
             wrappedDescription = normalizeDescription(
-              continuation.slice(0, continuationValues[0].index)
+              continuation.slice(0, continuationValues[0].index),
             );
           }
           break;
@@ -326,16 +354,34 @@ function parseCapitalOneDeposit(document, base) {
       let description = normalizeDescription(row[3]);
       if (!description) {
         const previous = cleanText(page.lines[index - 1]?.text ?? "");
-        if (previous && !/^[+-]$|^\$?[\d,]*\.\d{2}$|^(?:DATE|Page|capitalone)/i.test(previous)) {
+        if (
+          previous &&
+          !/^[+-]$|^\$?[\d,]*\.\d{2}$|^(?:DATE|Page|capitalone)/i.test(previous)
+        ) {
           description = previous;
         }
         if (wrappedDescription) {
-          description = normalizeDescription(`${description} ${wrappedDescription}`);
+          description = normalizeDescription(
+            `${description} ${wrappedDescription}`,
+          );
         }
-        for (let offset = lookAheadEnd - index + 1; offset <= lookAheadEnd - index + 2; offset += 1) {
-          const continuation = cleanText(page.lines[index + offset]?.text ?? "");
-          if (!continuation || new RegExp(`^${MONTH_NAME}\\s+\\d{1,2}`, "i").test(continuation)) break;
-          if (/^[+-]$|^\$?[\d,]*\.\d{2}$|^(?:Page|capitalone)/i.test(continuation)) continue;
+        for (
+          let offset = lookAheadEnd - index + 1;
+          offset <= lookAheadEnd - index + 2;
+          offset += 1
+        ) {
+          const continuation = cleanText(
+            page.lines[index + offset]?.text ?? "",
+          );
+          if (
+            !continuation ||
+            new RegExp(`^${MONTH_NAME}\\s+\\d{1,2}`, "i").test(continuation)
+          )
+            break;
+          if (
+            /^[+-]$|^\$?[\d,]*\.\d{2}$|^(?:Page|capitalone)/i.test(continuation)
+          )
+            continue;
           description = normalizeDescription(`${description} ${continuation}`);
         }
       }
@@ -343,12 +389,13 @@ function parseCapitalOneDeposit(document, base) {
         makeTransaction(base, {
           statementAccountKey: currentAccount,
           transactionDate: isoDate(year, month, Number(row[2])),
-          amount: row[4].toLowerCase() === "credit" ? amountValue : -amountValue,
+          amount:
+            row[4].toLowerCase() === "credit" ? amountValue : -amountValue,
           description: description || `${row[4]} transaction`,
           page: page.pageNumber,
           rowReference: `page ${page.pageNumber}, line ${index + 1}`,
           sourceLine: text,
-        })
+        }),
       );
     }
   }
@@ -373,9 +420,10 @@ function parseAlly(document, base) {
       const header = text.match(/^(Spending|Savings) Account Summary/i);
       if (header) {
         flush();
-        currentAccount = header[1].toLowerCase() === "spending"
-          ? accountKey("ally", "checking", "9448")
-          : accountKey("ally", "savings", "9452");
+        currentAccount =
+          header[1].toLowerCase() === "spending"
+            ? accountKey("ally", "checking", "9448")
+            : accountKey("ally", "savings", "9452");
         continue;
       }
       const accountNumber = text.match(/Account Number:\s*x+(\d{4})/i);
@@ -383,7 +431,7 @@ function parseAlly(document, base) {
         currentAccount = accountKey(
           "ally",
           accountNumber[1] === "9448" ? "checking" : "savings",
-          accountNumber[1]
+          accountNumber[1],
         );
         continue;
       }
@@ -397,7 +445,9 @@ function parseAlly(document, base) {
       flush();
       const values = moneyValues(dateMatch[4]);
       if (values.length < 2) continue;
-      const description = normalizeDescription(dateMatch[4].slice(0, values[0].index));
+      const description = normalizeDescription(
+        dateMatch[4].slice(0, values[0].index),
+      );
       if (/^(Beginning|Ending) Balance$/i.test(description)) continue;
       const credit = values.at(-3)?.value ?? values.at(-2)?.value ?? 0;
       const debit = values.at(-2)?.value ?? 0;
@@ -440,7 +490,12 @@ function parseChaseDeposit(document, base) {
       }
       const row = text.match(/^(\d{1,2})\/(\d{1,2})\s+(.+)$/);
       if (!row) {
-        if (pending && !/^(?:CHECKING|SAVINGS) SUMMARY|TRANSACTION DETAIL|Beginning Balance|Ending Balance/i.test(text)) {
+        if (
+          pending &&
+          !/^(?:CHECKING|SAVINGS) SUMMARY|TRANSACTION DETAIL|Beginning Balance|Ending Balance/i.test(
+            text,
+          )
+        ) {
           appendContinuation(pending, line);
         }
         continue;
@@ -454,10 +509,14 @@ function parseChaseDeposit(document, base) {
       const amount = firstMoney.value;
       if (!amount) continue;
       const postedMonth = Number(row[1]);
-      const postedYear = inferYearForMonth(postedMonth, base.periodStart, base.periodEnd);
+      const postedYear = inferYearForMonth(
+        postedMonth,
+        base.periodStart,
+        base.periodEnd,
+      );
       const postedDate = isoDate(postedYear, postedMonth, Number(row[2]));
       const transactionDateMatch = description.match(
-        /^(?:(?:Card Purchase|ATM Withdrawal|Card Refund|Debit Card Purchase)\s+)?(\d{1,2})\/(\d{1,2})\s+(.+)$/i
+        /^(?:(?:Card Purchase|ATM Withdrawal|Card Refund|Debit Card Purchase)\s+)?(\d{1,2})\/(\d{1,2})\s+(.+)$/i,
       );
       let transactionDate = postedDate;
       if (transactionDateMatch) {
@@ -465,12 +524,12 @@ function parseChaseDeposit(document, base) {
         const transactionYear = inferYearForMonth(
           transactionMonth,
           base.periodStart,
-          base.periodEnd
+          base.periodEnd,
         );
         transactionDate = isoDate(
           transactionYear,
           transactionMonth,
-          Number(transactionDateMatch[2])
+          Number(transactionDateMatch[2]),
         );
         description = normalizeDescription(transactionDateMatch[3]);
       }
@@ -491,10 +550,15 @@ function parseChaseDeposit(document, base) {
 }
 
 function creditSection(text, current) {
-  if (/PAYMENTS? AND (?:OTHER )?CREDITS|PAYMENTS, CREDITS/i.test(text)) return "credit";
-  if (/^(?:PURCHASES?|CASH ADVANCES?|ACCOUNT ACTIVITY: PURCHASES)/i.test(text)) return "purchase";
+  if (/PAYMENTS? AND (?:OTHER )?CREDITS|PAYMENTS, CREDITS/i.test(text))
+    return "credit";
+  if (/^(?:PURCHASES?|CASH ADVANCES?|ACCOUNT ACTIVITY: PURCHASES)/i.test(text))
+    return "purchase";
   if (/^(?:FEES CHARGED|INTEREST CHARGED)/i.test(text)) return "purchase";
-  if (/^(?:TOTAL PAYMENTS|TOTAL PURCHASES|TOTAL FEES|TOTAL INTEREST)/i.test(text)) return null;
+  if (
+    /^(?:TOTAL PAYMENTS|TOTAL PURCHASES|TOTAL FEES|TOTAL INTEREST)/i.test(text)
+  )
+    return null;
   return current;
 }
 
@@ -515,7 +579,12 @@ function parseChaseCredit(document, base) {
       const line = page.lines[index];
       const text = cleanText(line.text);
       const nextSection = creditSection(text, section);
-      if (nextSection !== section || /^(?:TOTAL PAYMENTS|TOTAL PURCHASES|TOTAL FEES|TOTAL INTEREST)/i.test(text)) {
+      if (
+        nextSection !== section ||
+        /^(?:TOTAL PAYMENTS|TOTAL PURCHASES|TOTAL FEES|TOTAL INTEREST)/i.test(
+          text,
+        )
+      ) {
         flush();
         section = nextSection;
         continue;
@@ -523,14 +592,20 @@ function parseChaseCredit(document, base) {
       if (!section) continue;
       const row = text.match(/^(\d{1,2})\/(\d{1,2})\s+(.+)$/);
       if (!row) {
-        if (pending && !/^Date of Transaction|Merchant Name|\$ Amount/i.test(text)) appendContinuation(pending, line);
+        if (
+          pending &&
+          !/^Date of Transaction|Merchant Name|\$ Amount/i.test(text)
+        )
+          appendContinuation(pending, line);
         continue;
       }
       flush();
       const values = moneyValues(row[3]);
       if (values.length === 0) continue;
       const amountToken = values.at(-1);
-      const description = normalizeDescription(row[3].slice(0, amountToken.index));
+      const description = normalizeDescription(
+        row[3].slice(0, amountToken.index),
+      );
       if (!description || /^Total/i.test(description)) continue;
       const month = Number(row[1]);
       const year = inferYearForMonth(month, base.periodStart, base.periodEnd);
@@ -539,7 +614,8 @@ function parseChaseCredit(document, base) {
         transactionDate: isoDate(year, month, Number(row[2])),
         amount:
           amountToken.value < 0 ||
-          (section === "credit" && !amountToken.raw.replace(/\s/g, "").startsWith("-"))
+          (section === "credit" &&
+            !amountToken.raw.replace(/\s/g, "").startsWith("-"))
             ? Math.abs(amountToken.value)
             : -Math.abs(amountToken.value),
         description,
@@ -574,7 +650,10 @@ function parseCapitalOneCredit(document, base) {
         section = "credit";
         continue;
       }
-      if (/: Transactions$/i.test(text) || /^Transactions\s+Trans Date/i.test(text)) {
+      if (
+        /: Transactions$/i.test(text) ||
+        /^Transactions\s+Trans Date/i.test(text)
+      ) {
         flush();
         section = "purchase";
         continue;
@@ -597,7 +676,9 @@ function parseCapitalOneCredit(document, base) {
       if (!section) continue;
 
       if (section === "interest") {
-        const interestRow = text.match(/^(Interest Charge on .+?)\s+(\$?[\d,]*\.\d{2})$/i);
+        const interestRow = text.match(
+          /^(Interest Charge on .+?)\s+(\$?[\d,]*\.\d{2})$/i,
+        );
         if (interestRow) {
           const amount = Math.abs(parseMoney(interestRow[2]));
           if (amount > 0.004) {
@@ -611,21 +692,28 @@ function parseCapitalOneCredit(document, base) {
                 page: page.pageNumber,
                 rowReference: `page ${page.pageNumber}, line ${index + 1}`,
                 sourceLine: text,
-              })
+              }),
             );
           }
         }
         continue;
       }
 
-      if (/Total Transactions|Total Fees|Total Interest|Totals Year-to-Date/i.test(text)) {
+      if (
+        /Total Transactions|Total Fees|Total Interest|Totals Year-to-Date/i.test(
+          text,
+        )
+      ) {
         flush();
         section = null;
         continue;
       }
 
       const row = text.match(
-        new RegExp(`^(${MONTH_NAME})\\s+(\\d{1,2})\\s+(${MONTH_NAME})\\s+(\\d{1,2})\\s+(.+)$`, "i")
+        new RegExp(
+          `^(${MONTH_NAME})\\s+(\\d{1,2})\\s+(${MONTH_NAME})\\s+(\\d{1,2})\\s+(.+)$`,
+          "i",
+        ),
       );
       if (!row) {
         appendContinuation(pending, line);
@@ -635,18 +723,33 @@ function parseCapitalOneCredit(document, base) {
       const values = moneyValues(row[5]);
       if (values.length === 0) continue;
       const amountToken = values.at(-1);
-      const description = normalizeDescription(row[5].slice(0, amountToken.index));
+      const description = normalizeDescription(
+        row[5].slice(0, amountToken.index),
+      );
       const transactionMonth = MONTHS[row[1].toLowerCase()];
       const postedMonth = MONTHS[row[3].toLowerCase()];
-      const transactionYear = inferYearForMonth(transactionMonth, base.periodStart, base.periodEnd);
-      const postedYear = inferYearForMonth(postedMonth, base.periodStart, base.periodEnd);
+      const transactionYear = inferYearForMonth(
+        transactionMonth,
+        base.periodStart,
+        base.periodEnd,
+      );
+      const postedYear = inferYearForMonth(
+        postedMonth,
+        base.periodStart,
+        base.periodEnd,
+      );
       pending = {
         statementAccountKey: key,
-        transactionDate: isoDate(transactionYear, transactionMonth, Number(row[2])),
+        transactionDate: isoDate(
+          transactionYear,
+          transactionMonth,
+          Number(row[2]),
+        ),
         postedDate: isoDate(postedYear, postedMonth, Number(row[4])),
         amount:
           amountToken.value < 0 ||
-          (section === "credit" && !amountToken.raw.replace(/\s/g, "").startsWith("-"))
+          (section === "credit" &&
+            !amountToken.raw.replace(/\s/g, "").startsWith("-"))
             ? Math.abs(amountToken.value)
             : -Math.abs(amountToken.value),
         description,
@@ -676,7 +779,10 @@ function parseGrasshopper(document, base) {
     for (let index = 0; index < page.lines.length; index += 1) {
       const line = page.lines[index];
       const text = cleanText(line.text)
-        .replace(/^(?:[A-Z]{16,}|\d{4}\s+\d{7}\s+\d{4}-\d{4}[^A-Za-z]*)\s*/g, "")
+        .replace(
+          /^(?:[A-Z]{16,}|\d{4}\s+\d{7}\s+\d{4}-\d{4}[^A-Za-z]*)\s*/g,
+          "",
+        )
         .trim();
       if (/^Transaction Detail$/i.test(text)) {
         inDetail = true;
@@ -693,21 +799,27 @@ function parseGrasshopper(document, base) {
         continue;
       }
       if (!inDetail) continue;
-      const row = text.match(new RegExp(`(?:^|\\s)(${MONTH_NAME})\\s+(\\d{1,2})\\s+(.+)$`, "i"));
+      const row = text.match(
+        new RegExp(`(?:^|\\s)(${MONTH_NAME})\\s+(\\d{1,2})\\s+(.+)$`, "i"),
+      );
       if (!row) {
-        if (text && !/^[A-Z]{12,}$/.test(text)) appendContinuation(pending, { ...line, text });
+        if (text && !/^[A-Z]{12,}$/.test(text))
+          appendContinuation(pending, { ...line, text });
         continue;
       }
       flush();
       const values = moneyValues(row[3]);
       if (values.length === 0) continue;
-      const description = normalizeDescription(row[3].slice(0, values[0].index));
+      const description = normalizeDescription(
+        row[3].slice(0, values[0].index),
+      );
       if (/^(Beginning|Ending) Balance$/i.test(description)) continue;
       const amountToken = values[0];
       const month = MONTHS[row[1].toLowerCase()];
       const year = inferYearForMonth(month, base.periodStart, base.periodEnd);
       let amount = amountToken.value;
-      if (amount > 0 && /PURCHASE|WITHDRAW|DEBIT|FEE/i.test(description)) amount = -amount;
+      if (amount > 0 && /PURCHASE|WITHDRAW|DEBIT|FEE/i.test(description))
+        amount = -amount;
       pending = {
         statementAccountKey: key,
         transactionDate: isoDate(year, month, Number(row[2])),
@@ -747,8 +859,11 @@ function roundedMoney(value) {
 function sumForAccount(transactions, statementAccountKey) {
   return roundedMoney(
     transactions
-      .filter((transaction) => transaction.statementAccountKey === statementAccountKey)
-      .reduce((sum, transaction) => sum + transaction.amount, 0)
+      .filter(
+        (transaction) =>
+          transaction.statementAccountKey === statementAccountKey,
+      )
+      .reduce((sum, transaction) => sum + transaction.amount, 0),
   );
 }
 
@@ -769,14 +884,19 @@ function firstMoneyAfter(text, pattern) {
   return match ? parseMoney(match[1]) : null;
 }
 
-function validateSingleDeposit(document, base, transactions, statementAccountKey) {
+function validateSingleDeposit(
+  document,
+  base,
+  transactions,
+  statementAccountKey,
+) {
   const beginning = firstMoneyAfter(
     document.text,
-    /Beginning Balance(?: as of [^$\n]+)?\s+(\$[\d,]+\.\d{2})/i
+    /Beginning Balance(?: as of [^$\n]+)?\s+(\$[\d,]+\.\d{2})/i,
   );
   const ending = firstMoneyAfter(
     document.text,
-    /Ending Balance(?: as of [^$\n]+)?\s+(\$[\d,]+\.\d{2})/i
+    /Ending Balance(?: as of [^$\n]+)?\s+(\$[\d,]+\.\d{2})/i,
   );
   if (beginning === null || ending === null) return [];
   return [
@@ -784,7 +904,7 @@ function validateSingleDeposit(document, base, transactions, statementAccountKey
       statementAccountKey,
       ending - beginning,
       sumForAccount(transactions, statementAccountKey),
-      "ending_balance_minus_beginning_balance"
+      "ending_balance_minus_beginning_balance",
     ),
   ];
 }
@@ -794,41 +914,63 @@ function validateCreditCard(document, base, transactions, statementAccountKey) {
   if (base.parser === "chase_credit_card") {
     const credits = firstMoneyAfter(
       text,
-      /^Payment,?\s*Credits\s*(?:-\s*)?(\$[\d,]+\.\d{2})/im
+      /^Payment,?\s*Credits\s*(?:-\s*)?(\$[\d,]+\.\d{2})/im,
     );
-    const purchases = firstMoneyAfter(text, /^Purchases\s*(?:\+\s*)?(\$[\d,]+\.\d{2})/im);
+    const purchases = firstMoneyAfter(
+      text,
+      /^Purchases\s*(?:\+\s*)?(\$[\d,]+\.\d{2})/im,
+    );
     const cashAdvances =
-      firstMoneyAfter(text, /^Cash Advances\s*(?:\+\s*)?(\$[\d,]+\.\d{2})/im) ?? 0;
-    const fees = firstMoneyAfter(text, /^Fees Charged\s*\+?\s*(\$[\d,]+\.\d{2})/im) ?? 0;
+      firstMoneyAfter(text, /^Cash Advances\s*(?:\+\s*)?(\$[\d,]+\.\d{2})/im) ??
+      0;
+    const fees =
+      firstMoneyAfter(text, /^Fees Charged\s*\+?\s*(\$[\d,]+\.\d{2})/im) ?? 0;
     const interest =
-      firstMoneyAfter(text, /^Interest Charged\s*\+?\s*(\$[\d,]+\.\d{2})/im) ?? 0;
+      firstMoneyAfter(text, /^Interest Charged\s*\+?\s*(\$[\d,]+\.\d{2})/im) ??
+      0;
     if (credits === null || purchases === null) return [];
     return [
       validationRow(
         statementAccountKey,
-        Math.abs(credits) - Math.abs(purchases) - Math.abs(cashAdvances) - Math.abs(fees) - Math.abs(interest),
+        Math.abs(credits) -
+          Math.abs(purchases) -
+          Math.abs(cashAdvances) -
+          Math.abs(fees) -
+          Math.abs(interest),
         sumForAccount(transactions, statementAccountKey),
-        "credit_card_activity_summary"
+        "credit_card_activity_summary",
       ),
     ];
   }
 
-  const payments = firstMoneyAfter(text, /Payments\s*(?:-\s*)?(\$[\d,]+\.\d{2})/i);
+  const payments = firstMoneyAfter(
+    text,
+    /Payments\s*(?:-\s*)?(\$[\d,]+\.\d{2})/i,
+  );
   const otherCredits =
     firstMoneyAfter(text, /Other Credits\s*(?:-\s*)?(\$[\d,]+\.\d{2})/i) ?? 0;
-  const purchases = firstMoneyAfter(text, /Transactions\s*\+\s*(\$[\d,]+\.\d{2})/i);
+  const purchases = firstMoneyAfter(
+    text,
+    /Transactions\s*\+\s*(\$[\d,]+\.\d{2})/i,
+  );
   const cashAdvances =
     firstMoneyAfter(text, /Cash Advances\s*\+\s*(\$[\d,]+\.\d{2})/i) ?? 0;
-  const fees = firstMoneyAfter(text, /Fees Charged\s*\+\s*(\$[\d,]+\.\d{2})/i) ?? 0;
+  const fees =
+    firstMoneyAfter(text, /Fees Charged\s*\+\s*(\$[\d,]+\.\d{2})/i) ?? 0;
   const interest =
     firstMoneyAfter(text, /Interest Charged\s*\+\s*(\$[\d,]+\.\d{2})/i) ?? 0;
   if (payments === null || purchases === null) return [];
   return [
     validationRow(
       statementAccountKey,
-      Math.abs(payments) + Math.abs(otherCredits) - Math.abs(purchases) - Math.abs(cashAdvances) - Math.abs(fees) - Math.abs(interest),
+      Math.abs(payments) +
+        Math.abs(otherCredits) -
+        Math.abs(purchases) -
+        Math.abs(cashAdvances) -
+        Math.abs(fees) -
+        Math.abs(interest),
       sumForAccount(transactions, statementAccountKey),
-      "credit_card_activity_summary"
+      "credit_card_activity_summary",
     ),
   ];
 }
@@ -843,7 +985,9 @@ function validateCapitalOneCombined(document, transactions) {
   for (const page of document.pages) {
     for (const line of page.lines) {
       const text = cleanText(line.text);
-      const header = text.match(/^(Cap1 Check|360 Performance Savings).*?(\d{4})\s*$/i);
+      const header = text.match(
+        /^(Cap1 Check|360 Performance Savings).*?(\d{4})\s*$/i,
+      );
       if (header) {
         currentAccount = header[1].toLowerCase().includes("saving")
           ? accountKey("capital_one", "savings", header[2])
@@ -854,19 +998,21 @@ function validateCapitalOneCombined(document, transactions) {
       if (!currentAccount) continue;
       const opening = text.match(/Opening Balance\s+(\$[\d,]+\.\d{2})/i);
       const closing = text.match(/Closing Balance\s+(\$[\d,]+\.\d{2})/i);
-      if (opening) balances.get(currentAccount).beginning = parseMoney(opening[1]);
+      if (opening)
+        balances.get(currentAccount).beginning = parseMoney(opening[1]);
       if (closing) balances.get(currentAccount).ending = parseMoney(closing[1]);
     }
   }
 
   return [...balances.entries()].flatMap(([statementAccountKey, balance]) => {
-    if (balance.beginning === undefined || balance.ending === undefined) return [];
+    if (balance.beginning === undefined || balance.ending === undefined)
+      return [];
     return [
       validationRow(
         statementAccountKey,
         balance.ending - balance.beginning,
         sumForAccount(transactions, statementAccountKey),
-        "ending_balance_minus_beginning_balance"
+        "ending_balance_minus_beginning_balance",
       ),
     ];
   });
@@ -880,15 +1026,15 @@ function validateAllyCombined(document, transactions) {
     const statementAccountKey = accountKey(
       "ally",
       last4 === "9448" ? "checking" : "savings",
-      last4
+      last4,
     );
     const beginning = firstMoneyAfter(
       page.text,
-      /Beginning Balance,?\s*as of [^$\n]+\s*(\$[\d,]+\.\d{2})/i
+      /Beginning Balance,?\s*as of [^$\n]+\s*(\$[\d,]+\.\d{2})/i,
     );
     const ending = firstMoneyAfter(
       page.text,
-      /Ending Balance,?\s*as of [^$\n]+\s*(\$[\d,]+\.\d{2})/i
+      /Ending Balance,?\s*as of [^$\n]+\s*(\$[\d,]+\.\d{2})/i,
     );
     if (beginning === null || ending === null) continue;
     results.push(
@@ -896,8 +1042,8 @@ function validateAllyCombined(document, transactions) {
         statementAccountKey,
         ending - beginning,
         sumForAccount(transactions, statementAccountKey),
-        "ending_balance_minus_beginning_balance"
-      )
+        "ending_balance_minus_beginning_balance",
+      ),
     );
   }
   return results;
@@ -915,10 +1061,17 @@ function validateParsedTransactions(document, base, transactions) {
     base.parser === "chase_credit_card" ||
     base.parser === "capital_one_credit_card"
   ) {
-    return defaultKey ? validateCreditCard(document, base, transactions, defaultKey) : [];
+    return defaultKey
+      ? validateCreditCard(document, base, transactions, defaultKey)
+      : [];
   }
-  if (base.parser === "chase_deposit" || base.parser === "grasshopper_deposit") {
-    return defaultKey ? validateSingleDeposit(document, base, transactions, defaultKey) : [];
+  if (
+    base.parser === "chase_deposit" ||
+    base.parser === "grasshopper_deposit"
+  ) {
+    return defaultKey
+      ? validateSingleDeposit(document, base, transactions, defaultKey)
+      : [];
   }
   return [];
 }
@@ -929,7 +1082,9 @@ export async function extractPdfDocument(filePath) {
 
 export async function parseStatementFile(filePath, statementsRoot) {
   const document = await extractPdfDocument(filePath);
-  const relativePath = path.relative(statementsRoot, filePath).replaceAll("\\", "/");
+  const relativePath = path
+    .relative(statementsRoot, filePath)
+    .replaceAll("\\", "/");
   const folder = path.basename(path.dirname(filePath));
   const parser = detectParser(folder, document.text);
   const period = parsePeriod(document.text);
@@ -943,23 +1098,32 @@ export async function parseStatementFile(filePath, statementsRoot) {
   };
 
   let transactions = [];
-  if (parser === "ally_combined_deposit") transactions = parseAlly(document, base);
-  if (parser === "capital_one_combined_deposit") transactions = parseCapitalOneDeposit(document, base);
-  if (parser === "chase_deposit") transactions = parseChaseDeposit(document, base);
-  if (parser === "chase_credit_card") transactions = parseChaseCredit(document, base);
-  if (parser === "capital_one_credit_card") transactions = parseCapitalOneCredit(document, base);
-  if (parser === "grasshopper_deposit") transactions = parseGrasshopper(document, base);
+  if (parser === "ally_combined_deposit")
+    transactions = parseAlly(document, base);
+  if (parser === "capital_one_combined_deposit")
+    transactions = parseCapitalOneDeposit(document, base);
+  if (parser === "chase_deposit")
+    transactions = parseChaseDeposit(document, base);
+  if (parser === "chase_credit_card")
+    transactions = parseChaseCredit(document, base);
+  if (parser === "capital_one_credit_card")
+    transactions = parseCapitalOneCredit(document, base);
+  if (parser === "grasshopper_deposit")
+    transactions = parseGrasshopper(document, base);
 
   transactions = dedupeWithinFile(transactions);
   const validations = validateParsedTransactions(document, base, transactions);
 
   const warnings = [];
-  if (!period.start || !period.end) warnings.push("statement_period_not_detected");
+  if (!period.start || !period.end)
+    warnings.push("statement_period_not_detected");
   if (parser === "unknown") warnings.push("unsupported_statement_format");
   if (
     transactions.length === 0 &&
     !validations.some(
-      (validation) => validation.status === "pass" && Math.abs(validation.expectedNet) <= 0.02
+      (validation) =>
+        validation.status === "pass" &&
+        Math.abs(validation.expectedNet) <= 0.02,
     )
   ) {
     warnings.push("no_transactions_parsed");
@@ -967,7 +1131,8 @@ export async function parseStatementFile(filePath, statementsRoot) {
   if (validations.some((validation) => validation.status === "fail")) {
     warnings.push("statement_balance_validation_failed");
   }
-  if (validations.length === 0) warnings.push("statement_balance_not_validated");
+  if (validations.length === 0)
+    warnings.push("statement_balance_not_validated");
 
   const defaultAccountKey = statementAccountFromFolder(folder);
   const detectedAccountLast4s = new Set();
@@ -977,11 +1142,15 @@ export async function parseStatementFile(filePath, statementsRoot) {
     /Payment Due Date:[^\n]*?Account ending in\s+(\d{4})/gi,
     /Account Number:\s*(?:\d{4}|X{4})\s+(?:\d{4}|X{4})\s+(?:\d{4}|X{4})\s+(\d{4})/gi,
   ]) {
-    for (const match of document.text.matchAll(pattern)) detectedAccountLast4s.add(match[1]);
+    for (const match of document.text.matchAll(pattern))
+      detectedAccountLast4s.add(match[1]);
   }
   const statementAccountKeys =
     parser === "ally_combined_deposit"
-      ? [accountKey("ally", "checking", "9448"), accountKey("ally", "savings", "9452")]
+      ? [
+          accountKey("ally", "checking", "9448"),
+          accountKey("ally", "savings", "9452"),
+        ]
       : parser === "capital_one_combined_deposit"
         ? [
             accountKey("capital_one", "checking", "3244"),
@@ -989,7 +1158,13 @@ export async function parseStatementFile(filePath, statementsRoot) {
           ]
         : defaultAccountKey
           ? [defaultAccountKey]
-          : [...new Set(transactions.map((transaction) => transaction.statementAccountKey))];
+          : [
+              ...new Set(
+                transactions.map(
+                  (transaction) => transaction.statementAccountKey,
+                ),
+              ),
+            ];
 
   return {
     relativePath,

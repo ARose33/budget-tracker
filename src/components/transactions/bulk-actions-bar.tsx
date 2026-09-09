@@ -53,9 +53,7 @@ export function BulkActionsBar({
 
   return (
     <div className="flex items-center gap-2 p-3 bg-muted rounded-lg border flex-wrap">
-      <span className="text-sm font-medium mr-2">
-        {selectedCount} selected
-      </span>
+      <span className="text-sm font-medium mr-2">{selectedCount} selected</span>
 
       {editMode === "category" && (
         <div className="flex items-center gap-2">
@@ -164,11 +162,7 @@ export function BulkActionsBar({
             <Building2 className="h-3.5 w-3.5 mr-1" />
             Account
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onFinalize}
-          >
+          <Button variant="outline" size="sm" onClick={onFinalize}>
             <CheckCircle className="h-3.5 w-3.5 mr-1" />
             Mark Final
           </Button>

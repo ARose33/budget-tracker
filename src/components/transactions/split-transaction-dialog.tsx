@@ -46,7 +46,9 @@ function formatCurrencyFromCents(cents: number) {
 }
 
 function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Could not update transaction split";
+  return error instanceof Error
+    ? error.message
+    : "Could not update transaction split";
 }
 
 export function SplitTransactionDialog({
@@ -73,9 +75,9 @@ export function SplitTransactionDialog({
             description:
               allocation.description === transaction.description
                 ? ""
-                : allocation.description ?? "",
+                : (allocation.description ?? ""),
           }))
-        : [emptyAllocation(), emptyAllocation()]
+        : [emptyAllocation(), emptyAllocation()],
     );
   };
 
@@ -100,16 +102,19 @@ export function SplitTransactionDialog({
     );
   });
   const canSave =
-    allocations.length >= 2 && allocationsValid && remainingCents === 0 && !isSaving;
+    allocations.length >= 2 &&
+    allocationsValid &&
+    remainingCents === 0 &&
+    !isSaving;
 
   const updateAllocation = (
     key: string,
-    patch: Partial<Omit<DraftAllocation, "key">>
+    patch: Partial<Omit<DraftAllocation, "key">>,
   ) => {
     setAllocations((current) =>
       current.map((allocation) =>
-        allocation.key === key ? { ...allocation, ...patch } : allocation
-      )
+        allocation.key === key ? { ...allocation, ...patch } : allocation,
+      ),
     );
   };
 
@@ -125,9 +130,13 @@ export function SplitTransactionDialog({
           category_id: allocation.categoryId!,
           amount: sign * (Math.round(Number(allocation.amount) * 100) / 100),
           description: allocation.description.trim() || undefined,
-        }))
+        })),
       );
-      toast.success(transaction.is_split ? "Transaction split updated" : "Transaction split");
+      toast.success(
+        transaction.is_split
+          ? "Transaction split updated"
+          : "Transaction split",
+      );
       setOpen(false);
       onSaved();
     } catch (error) {
@@ -163,7 +172,9 @@ export function SplitTransactionDialog({
         variant="ghost"
         size="icon-sm"
         onClick={() => handleOpenChange(true)}
-        aria-label={transaction.is_split ? "Edit transaction split" : "Split transaction"}
+        aria-label={
+          transaction.is_split ? "Edit transaction split" : "Split transaction"
+        }
         title={transaction.is_split ? "Edit split" : "Split transaction"}
       >
         <Scissors className="h-4 w-4" />
@@ -172,11 +183,14 @@ export function SplitTransactionDialog({
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {transaction.is_split ? "Edit transaction split" : "Split transaction"}
+              {transaction.is_split
+                ? "Edit transaction split"
+                : "Split transaction"}
             </DialogTitle>
             <DialogDescription>
-              Allocate {formatCurrencyFromCents(totalCents)} from {transaction.description || "this transaction"}.
-              The original bank transaction stays unchanged for reconciliation.
+              Allocate {formatCurrencyFromCents(totalCents)} from{" "}
+              {transaction.description || "this transaction"}. The original bank
+              transaction stays unchanged for reconciliation.
             </DialogDescription>
           </DialogHeader>
 
@@ -187,7 +201,10 @@ export function SplitTransactionDialog({
                 className="grid gap-2 rounded-lg border bg-muted/20 p-3 sm:grid-cols-[minmax(0,1.5fr)_110px_36px]"
               >
                 <div className="space-y-2">
-                  <label className="text-xs font-medium" htmlFor={`split-description-${allocation.key}`}>
+                  <label
+                    className="text-xs font-medium"
+                    htmlFor={`split-description-${allocation.key}`}
+                  >
                     Allocation {index + 1}
                   </label>
                   <CategorySelect
@@ -202,18 +219,25 @@ export function SplitTransactionDialog({
                     id={`split-description-${allocation.key}`}
                     value={allocation.description}
                     onChange={(event) =>
-                      updateAllocation(allocation.key, { description: event.target.value })
+                      updateAllocation(allocation.key, {
+                        description: event.target.value,
+                      })
                     }
                     placeholder="Optional description"
                     maxLength={250}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-medium" htmlFor={`split-amount-${allocation.key}`}>
+                  <label
+                    className="text-xs font-medium"
+                    htmlFor={`split-amount-${allocation.key}`}
+                  >
                     Amount
                   </label>
                   <div className="relative">
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      $
+                    </span>
                     <Input
                       id={`split-amount-${allocation.key}`}
                       type="number"
@@ -222,10 +246,15 @@ export function SplitTransactionDialog({
                       inputMode="decimal"
                       value={allocation.amount}
                       onChange={(event) =>
-                        updateAllocation(allocation.key, { amount: event.target.value })
+                        updateAllocation(allocation.key, {
+                          amount: event.target.value,
+                        })
                       }
                       className="pl-6 text-right tabular-nums"
-                      aria-invalid={Boolean(allocation.amount) && Number(allocation.amount) <= 0}
+                      aria-invalid={
+                        Boolean(allocation.amount) &&
+                        Number(allocation.amount) <= 0
+                      }
                     />
                   </div>
                 </div>
@@ -237,7 +266,7 @@ export function SplitTransactionDialog({
                     disabled={allocations.length <= 2}
                     onClick={() =>
                       setAllocations((current) =>
-                        current.filter((item) => item.key !== allocation.key)
+                        current.filter((item) => item.key !== allocation.key),
                       )
                     }
                     aria-label={`Remove allocation ${index + 1}`}
@@ -252,7 +281,9 @@ export function SplitTransactionDialog({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setAllocations((current) => [...current, emptyAllocation()])}
+              onClick={() =>
+                setAllocations((current) => [...current, emptyAllocation()])
+              }
             >
               <Plus className="h-4 w-4" />
               Add allocation
@@ -266,7 +297,7 @@ export function SplitTransactionDialog({
                 ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                 : remainingCents < 0
                   ? "border-red-200 bg-red-50 text-red-700"
-                  : "border-amber-200 bg-amber-50 text-amber-800"
+                  : "border-amber-200 bg-amber-50 text-amber-800",
             )}
           >
             <span>{remainingCents < 0 ? "Over allocated" : "Remaining"}</span>
@@ -275,7 +306,9 @@ export function SplitTransactionDialog({
             </span>
           </div>
 
-          <DialogFooter className={cn(transaction.is_split && "sm:justify-between")}>
+          <DialogFooter
+            className={cn(transaction.is_split && "sm:justify-between")}
+          >
             {transaction.is_split && (
               <Button
                 type="button"
@@ -288,7 +321,11 @@ export function SplitTransactionDialog({
               </Button>
             )}
             <div className="flex flex-col-reverse gap-2 sm:flex-row">
-              <Button variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>
+              <Button
+                variant="outline"
+                onClick={() => setOpen(false)}
+                disabled={isSaving}
+              >
                 Cancel
               </Button>
               <Button onClick={save} disabled={!canSave}>

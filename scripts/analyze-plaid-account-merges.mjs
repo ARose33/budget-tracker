@@ -21,7 +21,7 @@ function parseEnv() {
           .map((line) => {
             const index = line.indexOf("=");
             return [line.slice(0, index), line.slice(index + 1)];
-          })
+          }),
       )
     : {};
 
@@ -40,7 +40,9 @@ function isJsonMode() {
 
 function requiredEnv(env, name) {
   if (!env[name]) {
-    throw new Error(`Missing ${name}. Add it to .env.local or the environment.`);
+    throw new Error(
+      `Missing ${name}. Add it to .env.local or the environment.`,
+    );
   }
   return env[name];
 }
@@ -94,7 +96,9 @@ function extractMask(account) {
   ];
 
   for (const value of values) {
-    const match = String(value ?? "").match(/(?:\.\.\.|x{2,}|ending\s+in\s+)?(\d{4})\b/i);
+    const match = String(value ?? "").match(
+      /(?:\.\.\.|x{2,}|ending\s+in\s+)?(\d{4})\b/i,
+    );
     if (match) return match[1];
   }
   return null;
@@ -128,16 +132,18 @@ async function resolveUserId(supabase, explicitUserId) {
   if (explicitUserId) return explicitUserId;
 
   const accounts = await fetchAll(() =>
-    supabase.from("accounts").select("user_id").not("user_id", "is", null)
+    supabase.from("accounts").select("user_id").not("user_id", "is", null),
   );
-  const userIds = [...new Set(accounts.map((row) => row.user_id).filter(Boolean))];
+  const userIds = [
+    ...new Set(accounts.map((row) => row.user_id).filter(Boolean)),
+  ];
   if (userIds.length === 1) return userIds[0];
   if (userIds.length === 0) {
     throw new Error("No account user_id values found. Pass --user-id=<uuid>.");
   }
 
   throw new Error(
-    `Multiple user_id values found. Pass --user-id=<uuid>. Candidates: ${userIds.join(", ")}`
+    `Multiple user_id values found. Pass --user-id=<uuid>. Candidates: ${userIds.join(", ")}`,
   );
 }
 
@@ -150,12 +156,18 @@ function isTopLevel(transaction) {
 }
 
 function summarizeTransactions(account, transactions) {
-  const accountTransactions = transactions.filter((tx) => tx.account_id === account.id);
+  const accountTransactions = transactions.filter(
+    (tx) => tx.account_id === account.id,
+  );
   const visible = accountTransactions.filter(isVisibleTransaction);
   const topLevel = visible.filter(isTopLevel);
   const dates = topLevel.map((tx) => tx.date).sort();
-  const categorized = topLevel.filter((tx) => tx.category_id || tx.category).length;
-  const plaid = topLevel.filter((tx) => tx.connection_provider === PROVIDER).length;
+  const categorized = topLevel.filter(
+    (tx) => tx.category_id || tx.category,
+  ).length;
+  const plaid = topLevel.filter(
+    (tx) => tx.connection_provider === PROVIDER,
+  ).length;
   const splitParents = topLevel.filter((tx) => tx.is_split).length;
   const children = visible.filter((tx) => tx.parent_id).length;
 
@@ -201,7 +213,7 @@ function accountSignalScore(source, target) {
 
   const combinedSimilarity = tokenSimilarity(
     `${source.institution} ${source.name}`,
-    `${target.institution} ${target.name}`
+    `${target.institution} ${target.name}`,
   );
   if (combinedSimilarity > 0) {
     score += Math.min(2, combinedSimilarity * 2);
@@ -210,7 +222,11 @@ function accountSignalScore(source, target) {
   return { score, reasons };
 }
 
-function matchTransactions(sourceTransactions, targetTransactions, allTransactions) {
+function matchTransactions(
+  sourceTransactions,
+  targetTransactions,
+  allTransactions,
+) {
   const sourceTopLevel = sourceTransactions
     .filter(isVisibleTransaction)
     .filter(isTopLevel);
@@ -239,7 +255,10 @@ function matchTransactions(sourceTransactions, targetTransactions, allTransactio
       const days = dayDiff(source.date, target.date);
       if (days > MATCH_WINDOW_DAYS) continue;
 
-      const descriptionScore = tokenSimilarity(source.description, target.description);
+      const descriptionScore = tokenSimilarity(
+        source.description,
+        target.description,
+      );
       const score =
         3 +
         (days === 0 ? 2 : 1) +
@@ -256,10 +275,15 @@ function matchTransactions(sourceTransactions, targetTransactions, allTransactio
       usedTargets.add(best.target.id);
       matches.push({
         ...best,
-        sourceHasCategory: Boolean(best.source.category_id || best.source.category),
-        targetHasCategory: Boolean(best.target.category_id || best.target.category),
+        sourceHasCategory: Boolean(
+          best.source.category_id || best.source.category,
+        ),
+        targetHasCategory: Boolean(
+          best.target.category_id || best.target.category,
+        ),
         sourceIsSplit: Boolean(best.source.is_split),
-        sourceChildCount: sourceChildrenByParent.get(best.source.id)?.length ?? 0,
+        sourceChildCount:
+          sourceChildrenByParent.get(best.source.id)?.length ?? 0,
       });
     }
   }
@@ -275,17 +299,17 @@ function confidenceFor(candidate) {
 
 function buildCandidates(accounts, transactions) {
   const plaidAccounts = accounts.filter(
-    (account) => account.connection_provider === PROVIDER
+    (account) => account.connection_provider === PROVIDER,
   );
   const manualAccounts = accounts.filter(
-    (account) => account.connection_provider !== PROVIDER
+    (account) => account.connection_provider !== PROVIDER,
   );
   const transactionsByAccount = new Map();
 
   for (const account of accounts) {
     transactionsByAccount.set(
       account.id,
-      transactions.filter((tx) => tx.account_id === account.id)
+      transactions.filter((tx) => tx.account_id === account.id),
     );
   }
 
@@ -296,7 +320,7 @@ function buildCandidates(accounts, transactions) {
       const matches = matchTransactions(
         transactionsByAccount.get(source.id) ?? [],
         transactionsByAccount.get(target.id) ?? [],
-        transactions
+        transactions,
       );
       const sourceSummary = summarizeTransactions(source, transactions);
       const targetSummary = summarizeTransactions(target, transactions);
@@ -312,17 +336,18 @@ function buildCandidates(accounts, transactions) {
         targetSummary.firstDate && targetSummary.lastDate
           ? unmatchedSource.filter(
               (tx) =>
-                tx.date >= targetSummary.firstDate && tx.date <= targetSummary.lastDate
+                tx.date >= targetSummary.firstDate &&
+                tx.date <= targetSummary.lastDate,
             )
           : [];
       const afterTargetRange = targetSummary.lastDate
         ? unmatchedSource.filter((tx) => tx.date > targetSummary.lastDate)
         : [];
       const categoryCopyCount = matches.filter(
-        (match) => match.sourceHasCategory && !match.targetHasCategory
+        (match) => match.sourceHasCategory && !match.targetHasCategory,
       ).length;
       const splitCopyCount = matches.filter(
-        (match) => match.sourceIsSplit || match.sourceChildCount > 0
+        (match) => match.sourceIsSplit || match.sourceChildCount > 0,
       ).length;
       const matchCount = matches.length;
       const matchRatio =
@@ -377,7 +402,7 @@ function pickBestByTarget(candidates) {
     }
   }
   return [...byTarget.values()].filter(
-    (candidate) => candidate.confidence !== "low"
+    (candidate) => candidate.confidence !== "low",
   );
 }
 
@@ -403,19 +428,17 @@ function buildPlaidDuplicateGroups(accounts, summaries) {
   return [...groups.values()]
     .filter((group) => group.length > 1)
     .map((group) =>
-      group
-        .slice()
-        .sort((left, right) => {
-          const leftSummary = summaries.get(left.id);
-          const rightSummary = summaries.get(right.id);
-          return (
-            (rightSummary?.categorizedCount ?? 0) -
-              (leftSummary?.categorizedCount ?? 0) ||
-            String(right.last_synced_at ?? "").localeCompare(
-              String(left.last_synced_at ?? "")
-            )
-          );
-        })
+      group.slice().sort((left, right) => {
+        const leftSummary = summaries.get(left.id);
+        const rightSummary = summaries.get(right.id);
+        return (
+          (rightSummary?.categorizedCount ?? 0) -
+            (leftSummary?.categorizedCount ?? 0) ||
+          String(right.last_synced_at ?? "").localeCompare(
+            String(left.last_synced_at ?? ""),
+          )
+        );
+      }),
     );
 }
 
@@ -440,7 +463,7 @@ function printTextReport({
   }
   for (const connection of bankConnections) {
     console.log(
-      `- ${shortId(connection.id)} | ${connection.institution_name ?? "Unknown"} | ${connection.status} | synced ${connection.last_synced_at ?? "never"}`
+      `- ${shortId(connection.id)} | ${connection.institution_name ?? "Unknown"} | ${connection.status} | synced ${connection.last_synced_at ?? "never"}`,
     );
   }
 
@@ -452,12 +475,12 @@ function printTextReport({
     const keep = group[0];
     const keepSummary = summaries.get(keep.id);
     console.log(
-      `- Keep candidate ${shortId(keep.id)} ${keep.name} (${keep.institution}); categorized ${keepSummary?.categorizedCount ?? 0}, synced ${keep.last_synced_at ?? "never"}`
+      `- Keep candidate ${shortId(keep.id)} ${keep.name} (${keep.institution}); categorized ${keepSummary?.categorizedCount ?? 0}, synced ${keep.last_synced_at ?? "never"}`,
     );
     for (const duplicate of group.slice(1)) {
       const duplicateSummary = summaries.get(duplicate.id);
       console.log(
-        `  duplicate ${shortId(duplicate.id)} ${duplicate.name}; categorized ${duplicateSummary?.categorizedCount ?? 0}, synced ${duplicate.last_synced_at ?? "never"}`
+        `  duplicate ${shortId(duplicate.id)} ${duplicate.name}; categorized ${duplicateSummary?.categorizedCount ?? 0}, synced ${duplicate.last_synced_at ?? "never"}`,
       );
     }
   }
@@ -466,7 +489,7 @@ function printTextReport({
   for (const account of accounts) {
     const summary = summaries.get(account.id);
     console.log(
-      `- ${formatAccount(account)} | tx ${summary.transactionCount}, categorized ${summary.categorizedCount}, dates ${summary.firstDate ?? "n/a"}..${summary.lastDate ?? "n/a"}`
+      `- ${formatAccount(account)} | tx ${summary.transactionCount}, categorized ${summary.categorizedCount}, dates ${summary.firstDate ?? "n/a"}..${summary.lastDate ?? "n/a"}`,
     );
   }
 
@@ -477,16 +500,16 @@ function printTextReport({
 
   for (const candidate of bestCandidates) {
     console.log(
-      `- ${candidate.confidence.toUpperCase()} ${candidate.source.name} (${candidate.source.institution}, ${shortId(candidate.source.id)}) -> ${candidate.target.name} (${candidate.target.institution}, ${shortId(candidate.target.id)})`
+      `- ${candidate.confidence.toUpperCase()} ${candidate.source.name} (${candidate.source.institution}, ${shortId(candidate.source.id)}) -> ${candidate.target.name} (${candidate.target.institution}, ${shortId(candidate.target.id)})`,
     );
     console.log(
-      `  score ${candidate.score.toFixed(1)}; matched duplicate tx ${candidate.matchCount}; categories to copy ${candidate.categoryCopyCount}; split parents to recreate ${candidate.splitCopyCount}`
+      `  score ${candidate.score.toFixed(1)}; matched duplicate tx ${candidate.matchCount}; categories to copy ${candidate.categoryCopyCount}; split parents to recreate ${candidate.splitCopyCount}`,
     );
     console.log(
-      `  unmatched source tx ${candidate.unmatchedSourceCount}: ${candidate.moveBeforeTargetRangeCount} before target range, ${candidate.reviewWithinTargetRangeCount} inside target range, ${candidate.moveAfterTargetRangeCount} after target range`
+      `  unmatched source tx ${candidate.unmatchedSourceCount}: ${candidate.moveBeforeTargetRangeCount} before target range, ${candidate.reviewWithinTargetRangeCount} inside target range, ${candidate.moveAfterTargetRangeCount} after target range`,
     );
     console.log(
-      `  source tx ${candidate.sourceSummary.transactionCount}, target tx ${candidate.targetSummary.transactionCount}; reasons: ${candidate.accountReasons.join(", ") || "transaction overlap"}`
+      `  source tx ${candidate.sourceSummary.transactionCount}, target tx ${candidate.targetSummary.transactionCount}; reasons: ${candidate.accountReasons.join(", ") || "transaction overlap"}`,
     );
   }
 
@@ -495,7 +518,7 @@ function printTextReport({
     console.log("\nLow-confidence possibilities");
     for (const candidate of low.slice(0, 10)) {
       console.log(
-        `- ${candidate.source.name} -> ${candidate.target.name}: score ${candidate.score.toFixed(1)}, matched tx ${candidate.matchCount}, reasons ${candidate.accountReasons.join(", ") || "weak transaction overlap"}`
+        `- ${candidate.source.name} -> ${candidate.target.name}: score ${candidate.score.toFixed(1)}, matched tx ${candidate.matchCount}, reasons ${candidate.accountReasons.join(", ") || "weak transaction overlap"}`,
       );
     }
   }
@@ -505,48 +528,50 @@ async function main() {
   const env = parseEnv();
   const supabase = createClient(
     requiredEnv(env, "NEXT_PUBLIC_SUPABASE_URL"),
-    requiredEnv(env, "SUPABASE_SERVICE_ROLE_KEY")
+    requiredEnv(env, "SUPABASE_SERVICE_ROLE_KEY"),
   );
   const userId = await resolveUserId(
     supabase,
-    getCliValue("user-id") || env.ACCOUNT_MERGE_USER_ID || env.CHASE_IMPORT_USER_ID
+    getCliValue("user-id") ||
+      env.ACCOUNT_MERGE_USER_ID ||
+      env.CHASE_IMPORT_USER_ID,
   );
 
   const accounts = await fetchAll(() =>
     supabase
       .from("accounts")
       .select(
-        "id, name, institution, type, current_balance, last_synced_at, plaid_account_id, connection_provider, external_account_id, hidden, user_id"
+        "id, name, institution, type, current_balance, last_synced_at, plaid_account_id, connection_provider, external_account_id, hidden, user_id",
       )
       .eq("user_id", userId)
       .order("institution")
-      .order("name")
+      .order("name"),
   );
   const bankConnections = await fetchAll(() =>
     supabase
       .from("bank_connections")
       .select(
-        "id, institution_name, institution_id, provider, status, last_synced_at, user_id"
+        "id, institution_name, institution_id, provider, status, last_synced_at, user_id",
       )
       .eq("user_id", userId)
       .eq("provider", PROVIDER)
-      .order("institution_name")
+      .order("institution_name"),
   );
   const transactions = await fetchAll(() =>
     supabase
       .from("transactions")
       .select(
-        "id, date, description, amount, category_id, category, account_id, status, connection_provider, external_transaction_id, external_status, source, upload_source, is_split, parent_id, user_id, created_at, not_duplicate"
+        "id, date, description, amount, category_id, category, account_id, status, connection_provider, external_transaction_id, external_status, source, upload_source, is_split, parent_id, user_id, created_at, not_duplicate",
       )
       .eq("user_id", userId)
-      .order("date")
+      .order("date"),
   );
 
   const summaries = new Map(
     accounts.map((account) => [
       account.id,
       summarizeTransactions(account, transactions),
-    ])
+    ]),
   );
   const candidates = buildCandidates(accounts, transactions);
   const bestCandidates = pickBestByTarget(candidates);
@@ -572,7 +597,7 @@ async function main() {
               last_synced_at: account.last_synced_at,
               external_account_id: account.external_account_id,
               summary: summaries.get(account.id),
-            }))
+            })),
           ),
           candidates: candidates.map((candidate) => ({
             confidence: candidate.confidence,
@@ -589,7 +614,8 @@ async function main() {
             splitCopyCount: candidate.splitCopyCount,
             unmatchedSourceCount: candidate.unmatchedSourceCount,
             moveBeforeTargetRangeCount: candidate.moveBeforeTargetRangeCount,
-            reviewWithinTargetRangeCount: candidate.reviewWithinTargetRangeCount,
+            reviewWithinTargetRangeCount:
+              candidate.reviewWithinTargetRangeCount,
             moveAfterTargetRangeCount: candidate.moveAfterTargetRangeCount,
             accountReasons: candidate.accountReasons,
             sourceSummary: candidate.sourceSummary,
@@ -609,13 +635,14 @@ async function main() {
             splitCopyCount: candidate.splitCopyCount,
             unmatchedSourceCount: candidate.unmatchedSourceCount,
             moveBeforeTargetRangeCount: candidate.moveBeforeTargetRangeCount,
-            reviewWithinTargetRangeCount: candidate.reviewWithinTargetRangeCount,
+            reviewWithinTargetRangeCount:
+              candidate.reviewWithinTargetRangeCount,
             moveAfterTargetRangeCount: candidate.moveAfterTargetRangeCount,
           })),
         },
         null,
-        2
-      )
+        2,
+      ),
     );
     return;
   }

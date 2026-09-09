@@ -12,12 +12,22 @@ export function useMonthSelector() {
   const now = new Date();
   const requestedYear = Number(searchParams.get("year"));
   const requestedMonth = Number(searchParams.get("month"));
-  const year = Number.isInteger(requestedYear) && requestedYear >= 1900 && requestedYear <= 9998 ? requestedYear : now.getFullYear();
-  const month = Number.isInteger(requestedMonth) && requestedMonth >= 1 && requestedMonth <= 12 ? requestedMonth : now.getMonth() + 1;
+  const year =
+    Number.isInteger(requestedYear) &&
+    requestedYear >= 1900 &&
+    requestedYear <= 9998
+      ? requestedYear
+      : now.getFullYear();
+  const month =
+    Number.isInteger(requestedMonth) &&
+    requestedMonth >= 1 &&
+    requestedMonth <= 12
+      ? requestedMonth
+      : now.getMonth() + 1;
 
   const currentDate = useMemo(
     () => new Date(year, month - 1, 1),
-    [year, month]
+    [year, month],
   );
 
   const setMonth = useCallback(
@@ -28,7 +38,7 @@ export function useMonthSelector() {
       params.set("month", String(m));
       router.push(`${pathname}?${params.toString()}`);
     },
-    [searchParams, router, pathname]
+    [searchParams, router, pathname],
   );
 
   const goNext = useCallback(() => {

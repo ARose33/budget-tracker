@@ -24,22 +24,54 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get("file");
     if (!(file instanceof File)) {
-      return NextResponse.json({ error: "A PDF file is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "A PDF file is required" },
+        { status: 400 },
+      );
     }
-    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-      return NextResponse.json({ error: "Only PDF statements are supported" }, { status: 415 });
+    if (
+      file.type !== "application/pdf" &&
+      !file.name.toLowerCase().endsWith(".pdf")
+    ) {
+      return NextResponse.json(
+        { error: "Only PDF statements are supported" },
+        { status: 415 },
+      );
     }
     if (file.size > MAX_PDF_BYTES) {
-      return NextResponse.json({ error: "PDF files must be 15 MB or smaller" }, { status: 413 });
+      return NextResponse.json(
+        { error: "PDF files must be 15 MB or smaller" },
+        { status: 413 },
+      );
     }
 
-    const targetYear = z.coerce.number().int().min(1900).max(2100).safeParse(formData.get("targetYear"));
-    if (!targetYear.success) return NextResponse.json({ error: "Provide targetYear (1900–2100); no year is assumed." }, { status: 400 });
+    const targetYear = z.coerce
+      .number()
+      .int()
+      .min(1900)
+      .max(2100)
+      .safeParse(formData.get("targetYear"));
+    if (!targetYear.success)
+      return NextResponse.json(
+        { error: "Provide targetYear (1900–2100); no year is assumed." },
+        { status: 400 },
+      );
     const accountType = formData.get("accountType");
     const institution = formData.get("institution");
-    const document = await extractPdfBytes(new Uint8Array(await file.arrayBuffer()));
-    const lines = document.pages.flatMap(page => page.lines.map(line => line.text));
-    if (!lines.length) return NextResponse.json({ error: "This PDF has no extractable text. Use a text-based statement." }, { status: 422 });
+    const document = await extractPdfBytes(
+      new Uint8Array(await file.arrayBuffer()),
+    );
+    const lines = document.pages.flatMap((page) =>
+      page.lines.map((line) => line.text),
+    );
+    if (!lines.length)
+      return NextResponse.json(
+        {
+          error:
+            "This PDF has no extractable text. Use a text-based statement.",
+        },
+        { status: 422 },
+      );
     const result = parseStatementText(lines, {
       targetYear: targetYear.data,
       accountTypeHint:
@@ -63,6 +95,12 @@ export async function POST(request: Request) {
       pagesHaveText: lines.length > 0,
     });
   } catch {
-    return NextResponse.json({ error: "Could not read this PDF. Check that it is readable, not password-protected, and at most 100 pages." }, { status: 422 });
+    return NextResponse.json(
+      {
+        error:
+          "Could not read this PDF. Check that it is readable, not password-protected, and at most 100 pages.",
+      },
+      { status: 422 },
+    );
   }
 }

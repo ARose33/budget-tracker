@@ -32,7 +32,7 @@ export async function getAccounts(): Promise<Account[]> {
   const { data, error } = await supabase
     .from("accounts")
     .select(
-      "id, name, institution, type, current_balance, initial_value, initial_date, last_synced_at, plaid_account_id, connection_provider, external_account_id, hidden"
+      "id, name, institution, type, current_balance, initial_value, initial_date, last_synced_at, plaid_account_id, connection_provider, external_account_id, hidden",
     )
     .eq("user_id", userId)
     .order("institution")
@@ -47,7 +47,7 @@ export async function getBankConnections(): Promise<BankConnectionStatus[]> {
   const { data, error } = await supabase
     .from("bank_connections")
     .select(
-      "id, institution_name, institution_id, last_synced_at, provider, status, error_code, error_message"
+      "id, institution_name, institution_id, last_synced_at, provider, status, error_code, error_message",
     )
     .eq("user_id", userId)
     .eq("provider", "plaid")

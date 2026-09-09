@@ -38,9 +38,18 @@ const typeIcons: Record<string, LucideIcon> = {
 export default function AccountsPage() {
   const queryClient = useQueryClient();
   const [history, setHistory] = useState(false);
-  const connections = useQuery({ queryKey: ["bank-connections"], queryFn: getBankConnections });
+  const connections = useQuery({
+    queryKey: ["bank-connections"],
+    queryFn: getBankConnections,
+  });
 
-  const { data: accounts = [], isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: accounts = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["accounts"],
     queryFn: getAccounts,
   });
@@ -71,7 +80,7 @@ export default function AccountsPage() {
           .map((failure) => failure.institutionName)
           .join(", ");
         toast.warning(
-          `Some banks need attention: ${failedBanks}. Retry sync or reconnect when requested.`
+          `Some banks need attention: ${failedBanks}. Retry sync or reconnect when requested.`,
         );
         return;
       }
@@ -80,7 +89,7 @@ export default function AccountsPage() {
       const duplicateText =
         linked > 0 ? ` and linked ${linked} existing duplicates` : "";
       toast.success(
-        `Plaid synced ${summary.accounts ?? 0} accounts and ${summary.transactions ?? 0} transactions${duplicateText}`
+        `Plaid synced ${summary.accounts ?? 0} accounts and ${summary.transactions ?? 0} transactions${duplicateText}`,
       );
     },
     onError: (error: Error) => {
@@ -88,16 +97,40 @@ export default function AccountsPage() {
     },
   });
 
-  const visibleAccounts = accounts.filter((account) => history || (!account.hidden && isSupportedAccountType(account.type)));
+  const visibleAccounts = accounts.filter(
+    (account) =>
+      history || (!account.hidden && isSupportedAccountType(account.type)),
+  );
 
-  const grouped = [...new Set<string>([...SUPPORTED_ACCOUNT_TYPES, ...visibleAccounts.map(account => account.type ?? "Other")])].map((type) => ({
-    type,
-    accounts: visibleAccounts.filter((account) => (account.type ?? "Other") === type),
-  })).filter((group) => group.accounts.length > 0);
+  const grouped = [
+    ...new Set<string>([
+      ...SUPPORTED_ACCOUNT_TYPES,
+      ...visibleAccounts.map((account) => account.type ?? "Other"),
+    ]),
+  ]
+    .map((type) => ({
+      type,
+      accounts: visibleAccounts.filter(
+        (account) => (account.type ?? "Other") === type,
+      ),
+    }))
+    .filter((group) => group.accounts.length > 0);
 
-  const hasPlaidConnections = connections.data?.some(connection => connection.status === "active" || connection.status === "error") ?? false;
+  const hasPlaidConnections =
+    connections.data?.some(
+      (connection) =>
+        connection.status === "active" || connection.status === "error",
+    ) ?? false;
 
-  if (isError) return <div role="alert" className="rounded border p-6">{saveError(error)} <Button variant="outline" onClick={() => refetch()}>Retry</Button></div>;
+  if (isError)
+    return (
+      <div role="alert" className="rounded border p-6">
+        {saveError(error)}{" "}
+        <Button variant="outline" onClick={() => refetch()}>
+          Retry
+        </Button>
+      </div>
+    );
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -132,7 +165,7 @@ export default function AccountsPage() {
             <RefreshCw
               className={cn(
                 "h-4 w-4 mr-1",
-                plaidSyncMutation.isPending && "animate-spin"
+                plaidSyncMutation.isPending && "animate-spin",
               )}
             />
             {hasPlaidConnections ? "Sync Plaid" : "Connect Plaid first"}
@@ -143,8 +176,18 @@ export default function AccountsPage() {
       <PlaidConnectionCleanup />
       <ProviderReviews />
       <LegacyConnections />
-      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={history} onChange={event => setHistory(event.target.checked)} />Show hidden and other historical accounts</label>
-      <p className="text-xs text-muted-foreground">Hiding an account does not exclude its transactions from Budget. Bank disconnection retains the ledger.</p>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={history}
+          onChange={(event) => setHistory(event.target.checked)}
+        />
+        Show hidden and other historical accounts
+      </label>
+      <p className="text-xs text-muted-foreground">
+        Hiding an account does not exclude its transactions from Budget. Bank
+        disconnection retains the ledger.
+      </p>
 
       {grouped.map(({ type, accounts: accts }) => {
         const Icon = typeIcons[type] ?? Wallet;
@@ -156,17 +199,37 @@ export default function AccountsPage() {
             </h3>
             <div className="grid gap-3 md:grid-cols-2">
               {accts.map((a) => (
-                <Card
-                  key={a.id}
-                  className={cn(a.hidden && "opacity-50")}
-                >
+                <Card key={a.id} className={cn(a.hidden && "opacity-50")}>
                   <CardContent className="pt-6">
                     <div className="flex items-start justify-between">
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium">{a.name} {a.hidden ? <Badge variant="outline">Hidden</Badge> : null}</p>
-                        <p className="mt-1 text-lg font-semibold tabular-nums">{a.current_balance == null ? "Balance unavailable" : money(a.current_balance)}</p>
-                        {history && a.initial_value != null ? <p className="text-xs text-muted-foreground">Recorded opening value: {money(a.initial_value)}{a.initial_date ? " · " + a.initial_date.slice(0, 10) : ""}</p> : null}
-                        <Link className="text-xs text-primary underline" href={"/transactions?accountId=" + a.id + "&history=all"}>View all activity and history</Link>
+                        <p className="font-medium">
+                          {a.name}{" "}
+                          {a.hidden ? (
+                            <Badge variant="outline">Hidden</Badge>
+                          ) : null}
+                        </p>
+                        <p className="mt-1 text-lg font-semibold tabular-nums">
+                          {a.current_balance == null
+                            ? "Balance unavailable"
+                            : money(a.current_balance)}
+                        </p>
+                        {history && a.initial_value != null ? (
+                          <p className="text-xs text-muted-foreground">
+                            Recorded opening value: {money(a.initial_value)}
+                            {a.initial_date
+                              ? " · " + a.initial_date.slice(0, 10)
+                              : ""}
+                          </p>
+                        ) : null}
+                        <Link
+                          className="text-xs text-primary underline"
+                          href={
+                            "/transactions?accountId=" + a.id + "&history=all"
+                          }
+                        >
+                          View all activity and history
+                        </Link>
                         <p className="text-sm text-muted-foreground">
                           {a.institution}
                         </p>

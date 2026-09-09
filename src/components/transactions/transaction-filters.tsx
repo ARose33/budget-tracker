@@ -56,24 +56,25 @@ export function TransactionFiltersBar({
     () =>
       filters.categoryType
         ? categories.filter(
-            (category) => getCategoryType(category.category_type) === filters.categoryType
+            (category) =>
+              getCategoryType(category.category_type) === filters.categoryType,
           )
         : categories,
-    [categories, filters.categoryType]
+    [categories, filters.categoryType],
   );
 
   const groups = useMemo(
     () =>
       [...new Set(typeCategories.map((category) => category.group_name))].sort(
-        (a, b) => a.localeCompare(b)
+        (a, b) => a.localeCompare(b),
       ),
-    [typeCategories]
+    [typeCategories],
   );
 
   const lineItemCategories = useMemo(() => {
     const filtered = filters.categoryGroup
       ? typeCategories.filter(
-          (category) => category.group_name === filters.categoryGroup
+          (category) => category.group_name === filters.categoryGroup,
         )
       : typeCategories;
 
@@ -85,7 +86,7 @@ export function TransactionFiltersBar({
   }, [typeCategories, filters.categoryGroup]);
 
   const selectedLineItem = categories.find(
-    (category) => category.id === filters.categoryId
+    (category) => category.id === filters.categoryId,
   );
 
   const hasFilters =
@@ -101,10 +102,10 @@ export function TransactionFiltersBar({
     filters.dateTo;
 
   const handleTypeChange = (
-    categoryType: TransactionFilters["categoryType"]
+    categoryType: TransactionFilters["categoryType"],
   ) => {
     const selectedCategory = categories.find(
-      (category) => category.id === filters.categoryId
+      (category) => category.id === filters.categoryId,
     );
     const categoryMatches =
       !categoryType ||
@@ -114,7 +115,8 @@ export function TransactionFiltersBar({
       categories.some(
         (category) =>
           category.group_name === filters.categoryGroup &&
-          (!categoryType || getCategoryType(category.category_type) === categoryType)
+          (!categoryType ||
+            getCategoryType(category.category_type) === categoryType),
       );
 
     onChange({
@@ -129,13 +131,14 @@ export function TransactionFiltersBar({
 
   const handleGroupChange = (groupName: string | undefined) => {
     const selectedCategory = categories.find(
-      (category) => category.id === filters.categoryId
+      (category) => category.id === filters.categoryId,
     );
     const shouldKeepLineItem =
       groupName &&
       selectedCategory?.group_name === groupName &&
       (!filters.categoryType ||
-        getCategoryType(selectedCategory.category_type) === filters.categoryType);
+        getCategoryType(selectedCategory.category_type) ===
+          filters.categoryType);
 
     onChange({
       ...filters,
@@ -165,8 +168,10 @@ export function TransactionFiltersBar({
       ...filters,
       status,
       uncategorizedOnly: false,
-      categoryType: status === "uncategorized" ? undefined : filters.categoryType,
-      categoryGroup: status === "uncategorized" ? undefined : filters.categoryGroup,
+      categoryType:
+        status === "uncategorized" ? undefined : filters.categoryType,
+      categoryGroup:
+        status === "uncategorized" ? undefined : filters.categoryGroup,
       categoryId: status === "uncategorized" ? undefined : filters.categoryId,
     });
   };
@@ -177,14 +182,30 @@ export function TransactionFiltersBar({
 
   return (
     <div className="space-y-3">
-      <label className="flex flex-wrap items-center gap-2 text-sm">Activity and history
-        <select className="min-h-10 rounded-md border bg-card px-3" value={filters.history ?? "active"} onChange={event => {
-          const value = event.target.value;
-          onChange({ ...filters, history: value === "all" || value === "archived" || value === "removed" ? value : undefined });
-        }}>
-          <option value="active">Active transactions</option><option value="all">All transactions, including history</option><option value="archived">Archived by you</option><option value="removed">Removed at source</option>
+      <label className="flex flex-wrap items-center gap-2 text-sm">
+        Activity and history
+        <select
+          className="min-h-10 rounded-md border bg-card px-3"
+          value={filters.history ?? "active"}
+          onChange={(event) => {
+            const value = event.target.value;
+            onChange({
+              ...filters,
+              history:
+                value === "all" || value === "archived" || value === "removed"
+                  ? value
+                  : undefined,
+            });
+          }}
+        >
+          <option value="active">Active transactions</option>
+          <option value="all">All transactions, including history</option>
+          <option value="archived">Archived by you</option>
+          <option value="removed">Removed at source</option>
         </select>
-        <span className="text-xs text-muted-foreground">History remains searchable across all accounts.</span>
+        <span className="text-xs text-muted-foreground">
+          History remains searchable across all accounts.
+        </span>
       </label>
       <div className="flex flex-wrap items-center gap-2">
         <span className="mr-1 text-sm font-medium text-muted-foreground">
@@ -220,7 +241,9 @@ export function TransactionFiltersBar({
           <Input
             placeholder="Search transactions..."
             value={filters.search || ""}
-            onChange={(e) => onChange({ ...filters, search: e.target.value || undefined })}
+            onChange={(e) =>
+              onChange({ ...filters, search: e.target.value || undefined })
+            }
             className="pl-9"
           />
         </div>
@@ -242,30 +265,28 @@ export function TransactionFiltersBar({
         <AccountFilter
           accounts={accounts}
           value={filters.accountId}
-          onValueChange={(accountId) =>
-            onChange({ ...filters, accountId })
-          }
+          onValueChange={(accountId) => onChange({ ...filters, accountId })}
         />
         <Input
           type="date"
           value={filters.dateFrom || ""}
-          onChange={(e) => onChange({ ...filters, dateFrom: e.target.value || undefined })}
+          onChange={(e) =>
+            onChange({ ...filters, dateFrom: e.target.value || undefined })
+          }
           className="w-[150px]"
           placeholder="From"
         />
         <Input
           type="date"
           value={filters.dateTo || ""}
-          onChange={(e) => onChange({ ...filters, dateTo: e.target.value || undefined })}
+          onChange={(e) =>
+            onChange({ ...filters, dateTo: e.target.value || undefined })
+          }
           className="w-[150px]"
           placeholder="To"
         />
         {hasFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onChange({})}
-          >
+          <Button variant="ghost" size="sm" onClick={() => onChange({})}>
             <X className="h-3.5 w-3.5 mr-1" />
             Clear
           </Button>

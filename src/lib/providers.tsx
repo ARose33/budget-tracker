@@ -15,14 +15,17 @@ export function Providers({ children }: { children: ReactNode }) {
             refetchOnWindowFocus: false,
           },
         },
-      })
+      }),
   );
 
   const identity = useRef<string | null | undefined>(undefined);
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       const next = session?.user.id ?? null;
-      if (identity.current !== undefined && identity.current !== next) queryClient.clear();
+      if (identity.current !== undefined && identity.current !== next)
+        queryClient.clear();
       identity.current = next;
     });
     return () => subscription.unsubscribe();

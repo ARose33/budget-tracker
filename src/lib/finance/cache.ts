@@ -5,6 +5,12 @@ export function invalidateFinance(client: QueryClient) {
   return client.invalidateQueries();
 }
 export function saveError(error: unknown) {
-  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") return error.message;
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof error.message === "string"
+  )
+    return error.message;
   return "The change could not be saved. Your draft is still here; retry when connected.";
 }

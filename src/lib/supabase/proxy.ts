@@ -12,7 +12,7 @@ const protectedRoutes = [
 
 function isProtectedPath(pathname: string) {
   return protectedRoutes.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`)
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
 }
 
@@ -39,10 +39,12 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options);
           });
-          Object.entries(headers).forEach(([name, value]) => response.headers.set(name, value));
+          Object.entries(headers).forEach(([name, value]) =>
+            response.headers.set(name, value),
+          );
         },
       },
-    }
+    },
   );
 
   const {

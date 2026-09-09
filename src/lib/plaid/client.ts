@@ -64,7 +64,7 @@ function asNonEmptyString(value: unknown) {
 function userFacingPlaidMessage(
   errorCode: string | null,
   displayMessage: string | null,
-  errorMessage: string | null
+  errorMessage: string | null,
 ) {
   if (displayMessage) return displayMessage;
 
@@ -151,13 +151,15 @@ function getPlaidClientId() {
 function getSiteUrl() {
   return (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(
     /\/$/,
-    ""
+    "",
   );
 }
 
 export function getPlaidClient() {
   if (process.env.STACKMINT_ISOLATED === "true") {
-    throw new PlaidConfigError("External bank connections are disabled in isolated verification.");
+    throw new PlaidConfigError(
+      "External bank connections are disabled in isolated verification.",
+    );
   }
   const environment = getPlaidEnvironment();
   const configuration = new Configuration({
@@ -196,26 +198,28 @@ export function getPlaidWebhookUrl() {
 
 export async function createPlaidLinkToken(userId: string) {
   const client = getPlaidClient();
-  const response = await plaidRequest(() => client.linkTokenCreate({
-    user: {
-      client_user_id: userId,
-    },
-    client_name: "Budget Tracker",
-    products: PLAID_PRODUCTS,
-    country_codes: PLAID_COUNTRY_CODES,
-    language: "en",
-    webhook: getPlaidWebhookUrl(),
-    transactions: {
-      days_requested: PLAID_HISTORY_DAYS,
-    },
-  }));
+  const response = await plaidRequest(() =>
+    client.linkTokenCreate({
+      user: {
+        client_user_id: userId,
+      },
+      client_name: "Budget Tracker",
+      products: PLAID_PRODUCTS,
+      country_codes: PLAID_COUNTRY_CODES,
+      language: "en",
+      webhook: getPlaidWebhookUrl(),
+      transactions: {
+        days_requested: PLAID_HISTORY_DAYS,
+      },
+    }),
+  );
 
   return response.data;
 }
 
 export async function createPlaidUpdateLinkToken(
   userId: string,
-  accessToken: string
+  accessToken: string,
 ) {
   const client = getPlaidClient();
   const request: LinkTokenCreateRequest = {
@@ -233,16 +237,18 @@ export async function createPlaidUpdateLinkToken(
 
 export async function exchangePlaidPublicToken(publicToken: string) {
   const client = getPlaidClient();
-  const response = await plaidRequest(() => client.itemPublicTokenExchange({
-    public_token: publicToken,
-  }));
+  const response = await plaidRequest(() =>
+    client.itemPublicTokenExchange({
+      public_token: publicToken,
+    }),
+  );
   return response.data;
 }
 
 export async function getPlaidItem(accessToken: string) {
   const client = getPlaidClient();
   const response = await plaidRequest(() =>
-    client.itemGet({ access_token: accessToken })
+    client.itemGet({ access_token: accessToken }),
   );
   return response.data.item;
 }
@@ -250,7 +256,7 @@ export async function getPlaidItem(accessToken: string) {
 export async function getPlaidAccounts(accessToken: string) {
   const client = getPlaidClient();
   const response = await plaidRequest(() =>
-    client.accountsGet({ access_token: accessToken })
+    client.accountsGet({ access_token: accessToken }),
   );
   return response.data.accounts;
 }
@@ -258,24 +264,26 @@ export async function getPlaidAccounts(accessToken: string) {
 export async function removePlaidItem(accessToken: string) {
   const client = getPlaidClient();
   const response = await plaidRequest(() =>
-    client.itemRemove({ access_token: accessToken })
+    client.itemRemove({ access_token: accessToken }),
   );
   return response.data;
 }
 
 export async function syncPlaidTransactions(
   accessToken: string,
-  cursor: string | null
+  cursor: string | null,
 ) {
   const client = getPlaidClient();
-  const response = await plaidRequest(() => client.transactionsSync({
-    access_token: accessToken,
-    cursor: cursor ?? undefined,
-    count: 500,
-    options: {
-      days_requested: PLAID_HISTORY_DAYS,
-      include_original_description: true,
-    },
-  }));
+  const response = await plaidRequest(() =>
+    client.transactionsSync({
+      access_token: accessToken,
+      cursor: cursor ?? undefined,
+      count: 500,
+      options: {
+        days_requested: PLAID_HISTORY_DAYS,
+        include_original_description: true,
+      },
+    }),
+  );
   return response.data;
 }

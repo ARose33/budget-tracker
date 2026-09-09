@@ -10,7 +10,10 @@ export async function GET(request: NextRequest) {
   if (code) {
     const supabase = await createServerClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) return NextResponse.redirect(new URL("/login?error=callback", request.url));
+    if (error)
+      return NextResponse.redirect(
+        new URL("/login?error=callback", request.url),
+      );
   } else {
     return NextResponse.redirect(new URL("/login?error=callback", request.url));
   }

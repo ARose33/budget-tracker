@@ -17,18 +17,31 @@ export function PlaidConnectionCleanup() {
     string | null
   >(null);
   const [linkToken, setLinkToken] = useState<string | null>(null);
-  const { data: connections = [], isError, refetch } = useQuery({
+  const {
+    data: connections = [],
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["bank-connections"],
     queryFn: getBankConnections,
   });
-  const inactiveConnections = connections.filter(
-    (connection) => ["active", "error", "inactive", "disconnecting", "disconnect_failed", "disconnected"].includes(connection.status)
+  const inactiveConnections = connections.filter((connection) =>
+    [
+      "active",
+      "error",
+      "inactive",
+      "disconnecting",
+      "disconnect_failed",
+      "disconnected",
+    ].includes(connection.status),
   );
   const errorConnections = connections.filter(
-    (connection) => connection.status === "error"
+    (connection) => connection.status === "error",
   );
 
-  const invalidate = useCallback(() => { void invalidateFinance(queryClient); }, [queryClient]);
+  const invalidate = useCallback(() => {
+    void invalidateFinance(queryClient);
+  }, [queryClient]);
 
   const finishRepair = useCallback(async () => {
     if (!repairingConnectionId) {
@@ -37,7 +50,7 @@ export function PlaidConnectionCleanup() {
 
     const response = await fetch(
       `/api/plaid/connections/${repairingConnectionId}/sync`,
-      { method: "POST" }
+      { method: "POST" },
     );
     const json = (await response.json().catch(() => ({}))) as {
       accounts?: number;
@@ -49,7 +62,7 @@ export function PlaidConnectionCleanup() {
     }
 
     toast.success(
-      `Plaid reconnected and synced ${json.accounts ?? 0} accounts and ${json.transactions ?? 0} transactions`
+      `Plaid reconnected and synced ${json.accounts ?? 0} accounts and ${json.transactions ?? 0} transactions`,
     );
     setLinkToken(null);
     setRepairingConnectionId(null);
@@ -61,7 +74,9 @@ export function PlaidConnectionCleanup() {
       await finishRepair();
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to finish Plaid repair"
+        error instanceof Error
+          ? error.message
+          : "Failed to finish Plaid repair",
       );
       invalidate();
     }
@@ -84,7 +99,7 @@ export function PlaidConnectionCleanup() {
     mutationFn: async (connectionId: string) => {
       const response = await fetch(
         `/api/plaid/connections/${connectionId}/link-token`,
-        { method: "POST" }
+        { method: "POST" },
       );
       const json = (await response.json().catch(() => ({}))) as {
         link_token?: string;
@@ -111,10 +126,9 @@ export function PlaidConnectionCleanup() {
 
   const removeMutation = useMutation({
     mutationFn: async (connectionId: string) => {
-      const response = await fetch(
-        `/api/plaid/connections/${connectionId}`,
-        { method: "DELETE" }
-      );
+      const response = await fetch(`/api/plaid/connections/${connectionId}`, {
+        method: "DELETE",
+      });
       const json = (await response.json().catch(() => ({}))) as {
         error?: string;
       };
@@ -133,14 +147,37 @@ export function PlaidConnectionCleanup() {
     },
   });
 
-  if (isError) return <p role="alert">Bank connection status could not be loaded. <Button variant="outline" onClick={() => refetch()}>Retry</Button></p>;
+  if (isError)
+    return (
+      <p role="alert">
+        Bank connection status could not be loaded.{" "}
+        <Button variant="outline" onClick={() => refetch()}>
+          Retry
+        </Button>
+      </p>
+    );
   if (inactiveConnections.length === 0 && errorConnections.length === 0) {
     return null;
   }
 
   return (
     <div className="space-y-3">
-      <ConfirmAction open={Boolean(disconnectId)} onOpenChange={open => { if (!open) setDisconnectId(null); }} title="Disconnect this bank?" description="Future synchronization stops. All accounts, transactions and connection history remain available." confirmLabel="Confirm disconnect" pending={removeMutation.isPending} onConfirm={() => { if (disconnectId) removeMutation.mutate(disconnectId, { onSuccess: () => setDisconnectId(null) }); }} />
+      <ConfirmAction
+        open={Boolean(disconnectId)}
+        onOpenChange={(open) => {
+          if (!open) setDisconnectId(null);
+        }}
+        title="Disconnect this bank?"
+        description="Future synchronization stops. All accounts, transactions and connection history remain available."
+        confirmLabel="Confirm disconnect"
+        pending={removeMutation.isPending}
+        onConfirm={() => {
+          if (disconnectId)
+            removeMutation.mutate(disconnectId, {
+              onSuccess: () => setDisconnectId(null),
+            });
+        }}
+      />
       {errorConnections.length > 0 && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">
           <div className="flex items-start gap-2">
@@ -150,7 +187,8 @@ export function PlaidConnectionCleanup() {
                 Bank connections need attention
               </p>
               <p className="mt-1 text-xs text-red-800">
-                Retry sync for temporary failures. Reconnect when the bank requires a new sign-in.
+                Retry sync for temporary failures. Reconnect when the bank
+                requires a new sign-in.
               </p>
             </div>
           </div>
@@ -194,9 +232,7 @@ export function PlaidConnectionCleanup() {
 
       {inactiveConnections.length > 0 && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <p className="text-sm font-medium text-amber-950">
-            Bank connections
-          </p>
+          <p className="text-sm font-medium text-amber-950">Bank connections</p>
           <div className="mt-3 space-y-2">
             {inactiveConnections.map((connection) => (
               <div
@@ -208,14 +244,19 @@ export function PlaidConnectionCleanup() {
                     {connection.institution_name ?? "Plaid connection"}
                   </p>
                   <p className="text-xs text-amber-800">
-                    {connection.status === "disconnected" ? "Accounts and transactions remain accessible." : "Stop future updates while retaining all existing activity."}
+                    {connection.status === "disconnected"
+                      ? "Accounts and transactions remain accessible."
+                      : "Stop future updates while retaining all existing activity."}
                   </p>
                 </div>
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  disabled={removeMutation.isPending || connection.status === "disconnected"}
+                  disabled={
+                    removeMutation.isPending ||
+                    connection.status === "disconnected"
+                  }
                   onClick={() => setDisconnectId(connection.id)}
                 >
                   {removeMutation.isPending ? (
@@ -223,7 +264,9 @@ export function PlaidConnectionCleanup() {
                   ) : (
                     <Unplug className="mr-1 h-4 w-4" />
                   )}
-                  {connection.status === "disconnected" ? "Disconnected · history retained" : "Disconnect from Plaid"}
+                  {connection.status === "disconnected"
+                    ? "Disconnected · history retained"
+                    : "Disconnect from Plaid"}
                 </Button>
               </div>
             ))}

@@ -14,31 +14,31 @@ export interface BudgetTotals {
 
 export function calculateBudgetTotals(groups: BudgetGroup[]): BudgetTotals {
   const incomeGroups = groups.filter(
-    (group) => group.category_type.toLowerCase() === "income"
+    (group) => group.category_type.toLowerCase() === "income",
   );
   const expenseGroups = groups.filter(
-    (group) => group.category_type.toLowerCase() === "expense"
+    (group) => group.category_type.toLowerCase() === "expense",
   );
 
   const budgetedIncome = incomeGroups.reduce(
     (sum, group) => sum + Math.round(Number(group.total_budget) * 100),
-    0
+    0,
   );
   const budgetedExpenses = expenseGroups.reduce(
     (sum, group) => sum + Math.round(Number(group.total_budget) * 100),
-    0
+    0,
   );
   const expenseRollover = expenseGroups.reduce(
     (sum, group) => sum + Math.round(Number(group.total_rollover) * 100),
-    0
+    0,
   );
   const actualIncome = incomeGroups.reduce(
     (sum, group) => sum + Math.round(Number(group.total_spent) * 100),
-    0
+    0,
   );
   const actualExpenses = expenseGroups.reduce(
     (sum, group) => sum + Math.round(Number(group.total_spent) * 100),
-    0
+    0,
   );
   const availableExpenses = budgetedExpenses + expenseRollover;
 

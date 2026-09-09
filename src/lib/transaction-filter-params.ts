@@ -25,7 +25,7 @@ function parseCategoryType(value: string | null) {
 }
 
 function parseCategorizationStatus(
-  value: string | null
+  value: string | null,
 ): CategorizationStatus | undefined {
   if (value === "uncategorized" || value === "pending" || value === "final") {
     return value;
@@ -34,13 +34,20 @@ function parseCategorizationStatus(
 }
 
 export function parseTransactionFilters(
-  searchParams: ReadableSearchParams
+  searchParams: ReadableSearchParams,
 ): TransactionFilters {
   const uncategorized = searchParams.get("uncategorized");
   const legacyUncategorized = uncategorized === "true" || uncategorized === "1";
 
   return {
-    history: searchParams.get("history") === "all" ? "all" : searchParams.get("history") === "archived" ? "archived" : searchParams.get("history") === "removed" ? "removed" : undefined,
+    history:
+      searchParams.get("history") === "all"
+        ? "all"
+        : searchParams.get("history") === "archived"
+          ? "archived"
+          : searchParams.get("history") === "removed"
+            ? "removed"
+            : undefined,
     search: searchParams.get("search") || undefined,
     categoryType: parseCategoryType(searchParams.get("categoryType")),
     categoryGroup: searchParams.get("categoryGroup") || undefined,
@@ -57,7 +64,7 @@ export function parseTransactionFilters(
 
 export function updateTransactionFilterParams(
   currentSearchParams: ReadableSearchParams,
-  filters: TransactionFilters
+  filters: TransactionFilters,
 ) {
   const params = new URLSearchParams(currentSearchParams.toString());
 
@@ -66,14 +73,14 @@ export function updateTransactionFilterParams(
   }
 
   if (filters.search) params.set("search", filters.search);
-  if (filters.history && filters.history !== "active") params.set("history", filters.history);
+  if (filters.history && filters.history !== "active")
+    params.set("history", filters.history);
   if (filters.categoryType) params.set("categoryType", filters.categoryType);
   if (filters.categoryGroup) params.set("categoryGroup", filters.categoryGroup);
   if (filters.categoryId) params.set("categoryId", filters.categoryId);
   if (filters.accountId) params.set("accountId", filters.accountId);
   const status =
-    filters.status ??
-    (filters.uncategorizedOnly ? "uncategorized" : undefined);
+    filters.status ?? (filters.uncategorizedOnly ? "uncategorized" : undefined);
   if (status) params.set("status", status);
   if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
   if (filters.dateTo) params.set("dateTo", filters.dateTo);

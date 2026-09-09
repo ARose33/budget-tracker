@@ -5,8 +5,14 @@ import { fileURLToPath } from "node:url";
 export const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 export function isolatedEnvironment(extra = {}) {
   // Never inherit application/provider credentials. No .env file is read here.
-  const env = Object.fromEntries(Object.entries(process.env).filter(([name]) =>
-    !/SUPABASE|PLAID|OPENAI|CRON_SECRET|WEBHOOK_SECRET|LEGACY_DATA|DATABASE_URL|PGPASSWORD|^NEXT_PUBLIC_|^STACKMINT_|^NODE_OPTIONS$/.test(name)));
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      ([name]) =>
+        !/SUPABASE|PLAID|OPENAI|CRON_SECRET|WEBHOOK_SECRET|LEGACY_DATA|DATABASE_URL|PGPASSWORD|^NEXT_PUBLIC_|^STACKMINT_|^NODE_OPTIONS$/.test(
+          name,
+        ),
+    ),
+  );
   return {
     ...env,
     NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:55321",
@@ -27,9 +33,15 @@ export function isolatedEnvironment(extra = {}) {
 export function runNode(args, extra = {}) {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, args, {
-      cwd: root, env: isolatedEnvironment(extra), stdio: "inherit", windowsHide: true,
+      cwd: root,
+      env: isolatedEnvironment(extra),
+      stdio: "inherit",
+      windowsHide: true,
     });
-    child.on("error", (error) => { console.error(error.message); resolve(1); });
+    child.on("error", (error) => {
+      console.error(error.message);
+      resolve(1);
+    });
     child.on("exit", (code) => resolve(code ?? 1));
   });
 }

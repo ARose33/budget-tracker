@@ -1,5 +1,13 @@
-import { requireExistingDataOperation, assertOperationTarget } from "./lib/operator-safety.mjs";
-const operationPlan = process.argv.includes("--local-only") && !process.argv.includes("--commit") ? null : requireExistingDataOperation("csv-import",{write:process.argv.includes("--commit")});
+import {
+  requireExistingDataOperation,
+  assertOperationTarget,
+} from "./lib/operator-safety.mjs";
+const operationPlan =
+  process.argv.includes("--local-only") && !process.argv.includes("--commit")
+    ? null
+    : requireExistingDataOperation("csv-import", {
+        write: process.argv.includes("--commit"),
+      });
 import fs from "node:fs";
 import path from "node:path";
 import Papa from "papaparse";
@@ -11,7 +19,7 @@ const ACCOUNT_INSTITUTION = "Chase";
 const UPLOAD_SOURCE = "chase_3568_csv";
 const DEFAULT_OUTPUT_PATH = path.join(
   "imports",
-  "chase3568_categorized_20260616.csv"
+  "chase3568_categorized_20260616.csv",
 );
 
 function parseEnv() {
@@ -26,7 +34,7 @@ function parseEnv() {
           .map((line) => {
             const index = line.indexOf("=");
             return [line.slice(0, index), line.slice(index + 1)];
-          })
+          }),
       )
     : {};
 
@@ -174,10 +182,7 @@ function categorize(row) {
     };
   }
 
-  if (
-    lower.includes("lovable") ||
-    lower.includes("snowflake")
-  ) {
+  if (lower.includes("lovable") || lower.includes("snowflake")) {
     return {
       group_name: "Software",
       line_item_name: "AI & Cloud Tools",
@@ -207,15 +212,14 @@ function categorize(row) {
     return {
       group_name: "Personal",
       line_item_name:
-        chaseCategory === "health & wellness" ? "Health & Wellness" : "Personal Care",
+        chaseCategory === "health & wellness"
+          ? "Health & Wellness"
+          : "Personal Care",
       category_type: "Expense",
     };
   }
 
-  if (
-    chaseCategory === "gifts & donations" ||
-    lower.includes("americares")
-  ) {
+  if (chaseCategory === "gifts & donations" || lower.includes("americares")) {
     return {
       group_name: "Giving",
       line_item_name: "Gifts & Donations",
@@ -223,10 +227,7 @@ function categorize(row) {
     };
   }
 
-  if (
-    chaseCategory === "professional services" ||
-    lower.includes("dimov")
-  ) {
+  if (chaseCategory === "professional services" || lower.includes("dimov")) {
     return {
       group_name: "Professional Services",
       line_item_name: "Tax & Legal",
@@ -328,7 +329,7 @@ function writeCategorizedCsv(rows, outputPath) {
         row.category.category_type,
       ]
         .map(toCsvValue)
-        .join(",")
+        .join(","),
     ),
   ];
 
@@ -357,7 +358,9 @@ function summarizeRows(rows, extra = {}) {
     parsed: rows.length,
     duplicateRowsInsideCsv: duplicateKeys.size,
     categories: Array.from(byCategory.entries()).sort((a, b) => b[1] - a[1]),
-    chaseCategories: Array.from(byChaseCategory.entries()).sort((a, b) => b[1] - a[1]),
+    chaseCategories: Array.from(byChaseCategory.entries()).sort(
+      (a, b) => b[1] - a[1],
+    ),
     ...extra,
   };
 }
@@ -379,7 +382,7 @@ async function getUserId(supabase, explicitUserId) {
   if (error) throw error;
   if (!data?.user_id) {
     throw new Error(
-      "No user_id found. Set CHASE_IMPORT_USER_ID to the Supabase auth user id."
+      "No user_id found. Set CHASE_IMPORT_USER_ID to the Supabase auth user id.",
     );
   }
   return data.user_id;
@@ -426,7 +429,7 @@ async function getOrCreateCategories(supabase, userId, categoryDefs, dryRun) {
     (existing || []).map((cat) => [
       `${cat.group_name}::${cat.line_item_name}`,
       cat.id,
-    ])
+    ]),
   );
 
   for (const category of categoryDefs) {
@@ -451,8 +454,14 @@ async function getOrCreateCategories(supabase, userId, categoryDefs, dryRun) {
 }
 
 async function existingTransactionKeys(supabase, userId, rows) {
-  const minDate = rows.reduce((min, row) => (row.date < min ? row.date : min), rows[0].date);
-  const maxDate = rows.reduce((max, row) => (row.date > max ? row.date : max), rows[0].date);
+  const minDate = rows.reduce(
+    (min, row) => (row.date < min ? row.date : min),
+    rows[0].date,
+  );
+  const maxDate = rows.reduce(
+    (max, row) => (row.date > max ? row.date : max),
+    rows[0].date,
+  );
   const { data, error } = await supabase
     .from("transactions")
     .select("date, amount, description")
@@ -461,20 +470,22 @@ async function existingTransactionKeys(supabase, userId, rows) {
     .lte("date", maxDate);
 
   if (error) throw error;
-  return new Set(
-    (data || []).map((row) => transactionKey(row))
-  );
+  return new Set((data || []).map((row) => transactionKey(row)));
 }
 
 async function main() {
-  const filePath = process.argv.find((arg) => arg.toLowerCase().endsWith(".csv"));
+  const filePath = process.argv.find((arg) =>
+    arg.toLowerCase().endsWith(".csv"),
+  );
   const commit = process.argv.includes("--commit");
   const localOnly = process.argv.includes("--local-only");
   const outputArg = process.argv.find((arg) => arg.startsWith("--output="));
-  const outputPath = outputArg ? outputArg.slice("--output=".length) : DEFAULT_OUTPUT_PATH;
+  const outputPath = outputArg
+    ? outputArg.slice("--output=".length)
+    : DEFAULT_OUTPUT_PATH;
   if (!filePath) {
     throw new Error(
-      "Usage: node scripts/import-chase-csv.js <file.csv> [--local-only] [--commit] [--output=imports/categorized.csv]"
+      "Usage: node scripts/import-chase-csv.js <file.csv> [--local-only] [--commit] [--output=imports/categorized.csv]",
     );
   }
 
@@ -489,8 +500,8 @@ async function main() {
           outputPath,
         }),
         null,
-        2
-      )
+        2,
+      ),
     );
     return;
   }
@@ -499,15 +510,25 @@ async function main() {
   assertOperationTarget(operationPlan, env.NEXT_PUBLIC_SUPABASE_URL);
   const supabase = createClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
   const userId = await getUserId(supabase, env.CHASE_IMPORT_USER_ID);
   assertOperationTarget(operationPlan, env.NEXT_PUBLIC_SUPABASE_URL, userId);
   const accountId = await getOrCreateAccount(supabase, userId, !commit);
   const categoryDefs = Array.from(
-    new Map(rows.map((row) => [`${row.category.group_name}::${row.category.line_item_name}`, row.category])).values()
+    new Map(
+      rows.map((row) => [
+        `${row.category.group_name}::${row.category.line_item_name}`,
+        row.category,
+      ]),
+    ).values(),
   );
-  const categoryIds = await getOrCreateCategories(supabase, userId, categoryDefs, !commit);
+  const categoryIds = await getOrCreateCategories(
+    supabase,
+    userId,
+    categoryDefs,
+    !commit,
+  );
   const existingKeys = await existingTransactionKeys(supabase, userId, rows);
 
   const seenCsvKeys = new Set();
@@ -550,12 +571,14 @@ async function main() {
         outputPath,
       },
       null,
-      2
-    )
+      2,
+    ),
   );
 }
 
 main().catch(() => {
-  console.error("Operator command failed. Inspect the protected operation report; no error payload is logged.");
+  console.error(
+    "Operator command failed. Inspect the protected operation report; no error payload is logged.",
+  );
   process.exit(1);
 });

@@ -1,5 +1,10 @@
-import { requireExistingDataOperation, assertOperationTarget } from "./lib/operator-safety.mjs";
-const operationPlan = requireExistingDataOperation("merge-accounts",{write:process.argv.includes("--commit")});
+import {
+  requireExistingDataOperation,
+  assertOperationTarget,
+} from "./lib/operator-safety.mjs";
+const operationPlan = requireExistingDataOperation("merge-accounts", {
+  write: process.argv.includes("--commit"),
+});
 import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
@@ -79,12 +84,14 @@ const DUPLICATE_PLAID_ACCOUNT_MERGES = [
     target: "8de93f93",
   },
   {
-    label: "Duplicate Chase CREDIT CARD (...5420) -> kept CREDIT CARD (...5420)",
+    label:
+      "Duplicate Chase CREDIT CARD (...5420) -> kept CREDIT CARD (...5420)",
     source: "2628ca8d",
     target: "cc2e97e2",
   },
   {
-    label: "Duplicate Chase CREDIT CARD (...6158) -> kept CREDIT CARD (...6158)",
+    label:
+      "Duplicate Chase CREDIT CARD (...6158) -> kept CREDIT CARD (...6158)",
     source: "c1685e57",
     target: "abbd8003",
   },
@@ -115,7 +122,7 @@ function parseEnv() {
           .map((line) => {
             const index = line.indexOf("=");
             return [line.slice(0, index), line.slice(index + 1)];
-          })
+          }),
       )
     : {};
 
@@ -134,7 +141,9 @@ function isCommitMode() {
 
 function requiredEnv(env, name) {
   if (!env[name]) {
-    throw new Error(`Missing ${name}. Add it to .env.local or the environment.`);
+    throw new Error(
+      `Missing ${name}. Add it to .env.local or the environment.`,
+    );
   }
   return env[name];
 }
@@ -157,7 +166,7 @@ function tokenSet(value) {
   return new Set(
     normalize(value)
       .split(" ")
-      .filter((token) => token.length >= 3)
+      .filter((token) => token.length >= 3),
   );
 }
 
@@ -210,9 +219,11 @@ async function resolveUserId(supabase, explicitUserId) {
 
   assertOperationTarget(operationPlan, env.NEXT_PUBLIC_SUPABASE_URL, userId);
   const accounts = await fetchAll(() =>
-    supabase.from("accounts").select("user_id").not("user_id", "is", null)
+    supabase.from("accounts").select("user_id").not("user_id", "is", null),
   );
-  const userIds = [...new Set(accounts.map((row) => row.user_id).filter(Boolean))];
+  const userIds = [
+    ...new Set(accounts.map((row) => row.user_id).filter(Boolean)),
+  ];
   if (userIds.length === 1) return userIds[0];
   throw new Error(`Pass --user-id=<uuid>. Found ${userIds.length} user ids.`);
 }
@@ -221,7 +232,7 @@ function resolveByPrefix(rows, prefix, label) {
   const matches = rows.filter((row) => row.id.startsWith(prefix));
   if (matches.length !== 1) {
     throw new Error(
-      `${label}: expected one row for id prefix ${prefix}, found ${matches.length}`
+      `${label}: expected one row for id prefix ${prefix}, found ${matches.length}`,
     );
   }
   return matches[0];
@@ -236,7 +247,10 @@ function statusRank(status) {
 
 function candidateScore(source, target) {
   const days = dayDiff(source.date, target.date);
-  const descriptionScore = tokenSimilarity(source.description, target.description);
+  const descriptionScore = tokenSimilarity(
+    source.description,
+    target.description,
+  );
   return {
     days,
     descriptionScore,
@@ -251,7 +265,10 @@ function candidateScore(source, target) {
 function assignCandidates(candidates, usedSources, usedTargets) {
   const matches = [];
   for (const candidate of candidates.sort((a, b) => b.score - a.score)) {
-    if (usedSources.has(candidate.source.id) || usedTargets.has(candidate.target.id)) {
+    if (
+      usedSources.has(candidate.source.id) ||
+      usedTargets.has(candidate.target.id)
+    ) {
       continue;
     }
     usedSources.add(candidate.source.id);
@@ -262,8 +279,12 @@ function assignCandidates(candidates, usedSources, usedTargets) {
 }
 
 function matchTransactions(sourceTransactions, targetTransactions) {
-  const sourceTopLevel = sourceTransactions.filter(isVisible).filter(isTopLevel);
-  const targetTopLevel = targetTransactions.filter(isVisible).filter(isTopLevel);
+  const sourceTopLevel = sourceTransactions
+    .filter(isVisible)
+    .filter(isTopLevel);
+  const targetTopLevel = targetTransactions
+    .filter(isVisible)
+    .filter(isTopLevel);
   const strictCandidates = [];
 
   for (const source of sourceTopLevel) {
@@ -272,7 +293,12 @@ function matchTransactions(sourceTransactions, targetTransactions) {
       const candidate = candidateScore(source, target);
       if (candidate.days > MATCH_WINDOW_DAYS) continue;
       if (candidate.score < 4.5) continue;
-      strictCandidates.push({ ...candidate, source, target, matchType: "strict" });
+      strictCandidates.push({
+        ...candidate,
+        source,
+        target,
+        matchType: "strict",
+      });
     }
   }
 
@@ -286,15 +312,17 @@ function matchTransactions(sourceTransactions, targetTransactions) {
     if (usedSources.has(source.id)) continue;
     const candidates = targetTopLevel.filter((target) => {
       if (usedTargets.has(target.id)) return false;
-      return sameAmount(source.amount, target.amount) &&
-        dayDiff(source.date, target.date) <= MATCH_WINDOW_DAYS;
+      return (
+        sameAmount(source.amount, target.amount) &&
+        dayDiff(source.date, target.date) <= MATCH_WINDOW_DAYS
+      );
     });
 
     if (candidates.length !== 1) continue;
     const target = candidates[0];
     targetCandidateCounts.set(
       target.id,
-      (targetCandidateCounts.get(target.id) ?? 0) + 1
+      (targetCandidateCounts.get(target.id) ?? 0) + 1,
     );
     looseCandidates.push({
       ...candidateScore(source, target),
@@ -307,11 +335,11 @@ function matchTransactions(sourceTransactions, targetTransactions) {
   matches.push(
     ...assignCandidates(
       looseCandidates.filter(
-        (candidate) => targetCandidateCounts.get(candidate.target.id) === 1
+        (candidate) => targetCandidateCounts.get(candidate.target.id) === 1,
       ),
       usedSources,
-      usedTargets
-    )
+      usedTargets,
+    ),
   );
 
   return matches;
@@ -383,7 +411,13 @@ function applyLocalUpdate(transaction, update) {
   Object.assign(transaction, update);
 }
 
-async function maybeUpdateTransaction(supabase, userId, transaction, update, commit) {
+async function maybeUpdateTransaction(
+  supabase,
+  userId,
+  transaction,
+  update,
+  commit,
+) {
   if (Object.keys(update).length === 0) return;
   applyLocalUpdate(transaction, update);
   if (!commit) return;
@@ -436,10 +470,10 @@ async function mergeManualAccount({
   };
   const childrenByParent = buildChildrenByParent(transactions);
   const sourceTransactions = transactions.filter(
-    (transaction) => transaction.account_id === sourceAccount.id
+    (transaction) => transaction.account_id === sourceAccount.id,
   );
   const targetTransactions = transactions.filter(
-    (transaction) => transaction.account_id === targetAccount.id
+    (transaction) => transaction.account_id === targetAccount.id,
   );
   const matches = matchTransactions(sourceTransactions, targetTransactions);
   const matchedSourceIds = new Set(matches.map((match) => match.source.id));
@@ -454,7 +488,7 @@ async function mergeManualAccount({
         userId,
         match.target,
         update,
-        commit
+        commit,
       );
     }
 
@@ -462,7 +496,7 @@ async function mergeManualAccount({
     const targetChildren = childrenByParent.get(match.target.id) ?? [];
     if (sourceChildren.length > 0 && targetChildren.length === 0) {
       const childRows = sourceChildren.map((child) =>
-        buildChildInsert(child, match.target, targetAccount)
+        buildChildInsert(child, match.target, targetAccount),
       );
       summary.splitChildrenInserted += childRows.length;
       await maybeUpdateTransaction(
@@ -470,7 +504,7 @@ async function mergeManualAccount({
         userId,
         match.target,
         { is_split: true },
-        commit
+        commit,
       );
       await maybeInsertRows(supabase, childRows, commit);
     }
@@ -484,7 +518,7 @@ async function mergeManualAccount({
         userId,
         duplicate,
         { external_status: REMOVED },
-        commit
+        commit,
       );
     }
 
@@ -507,7 +541,7 @@ async function mergeManualAccount({
         userId,
         row,
         { account_id: targetAccount.id, account: targetAccount.name },
-        commit
+        commit,
       );
     }
     summary.movedParents += 1;
@@ -535,10 +569,10 @@ async function mergeDuplicatePlaidAccount({
     unmatchedRemoved: 0,
   };
   const sourceTransactions = transactions.filter(
-    (transaction) => transaction.account_id === sourceAccount.id
+    (transaction) => transaction.account_id === sourceAccount.id,
   );
   const targetTransactions = transactions.filter(
-    (transaction) => transaction.account_id === targetAccount.id
+    (transaction) => transaction.account_id === targetAccount.id,
   );
   const matches = matchTransactions(sourceTransactions, targetTransactions);
   const matchedSourceIds = new Set(matches.map((match) => match.source.id));
@@ -553,7 +587,7 @@ async function mergeDuplicatePlaidAccount({
         userId,
         match.target,
         update,
-        commit
+        commit,
       );
     }
     summary.matched += 1;
@@ -569,7 +603,7 @@ async function mergeDuplicatePlaidAccount({
       userId,
       source,
       { external_status: REMOVED },
-      commit
+      commit,
     );
   }
 
@@ -601,26 +635,31 @@ async function retireConnections({ supabase, userId, connections, commit }) {
   return summaries;
 }
 
-function printSummary({ mode, manualSummaries, duplicateSummaries, connectionSummaries }) {
+function printSummary({
+  mode,
+  manualSummaries,
+  duplicateSummaries,
+  connectionSummaries,
+}) {
   console.log(`Mode: ${mode}`);
   console.log("\nManual account merges");
   for (const summary of manualSummaries) {
     console.log(
-      `- ${summary.label}: matched ${summary.matched} (${summary.strictMatches} strict, ${summary.looseMatches} loose), updated ${summary.targetUpdates}, removed ${summary.sourceRemoved}, moved ${summary.movedParents} parents/${summary.movedChildren} children, split children inserted ${summary.splitChildrenInserted}, category conflicts ${summary.categoryConflicts}`
+      `- ${summary.label}: matched ${summary.matched} (${summary.strictMatches} strict, ${summary.looseMatches} loose), updated ${summary.targetUpdates}, removed ${summary.sourceRemoved}, moved ${summary.movedParents} parents/${summary.movedChildren} children, split children inserted ${summary.splitChildrenInserted}, category conflicts ${summary.categoryConflicts}`,
     );
   }
 
   console.log("\nDuplicate Plaid account cleanup");
   for (const summary of duplicateSummaries) {
     console.log(
-      `- ${summary.label}: matched ${summary.matched}, updated ${summary.targetUpdates}, removed ${summary.sourceRemoved}, unmatched removed ${summary.unmatchedRemoved}, category conflicts ${summary.categoryConflicts}`
+      `- ${summary.label}: matched ${summary.matched}, updated ${summary.targetUpdates}, removed ${summary.sourceRemoved}, unmatched removed ${summary.unmatchedRemoved}, category conflicts ${summary.categoryConflicts}`,
     );
   }
 
   console.log("\nConnections");
   for (const summary of connectionSummaries) {
     console.log(
-      `- ${summary.label}: ${summary.id} ${summary.previousStatus} -> ${summary.newStatus}`
+      `- ${summary.label}: ${summary.id} ${summary.previousStatus} -> ${summary.newStatus}`,
     );
   }
 }
@@ -631,35 +670,37 @@ async function main() {
   const commit = isCommitMode();
   const supabase = createClient(
     requiredEnv(env, "NEXT_PUBLIC_SUPABASE_URL"),
-    requiredEnv(env, "SUPABASE_SERVICE_ROLE_KEY")
+    requiredEnv(env, "SUPABASE_SERVICE_ROLE_KEY"),
   );
   const userId = await resolveUserId(
     supabase,
-    getCliValue("user-id") || env.ACCOUNT_MERGE_USER_ID || env.CHASE_IMPORT_USER_ID
+    getCliValue("user-id") ||
+      env.ACCOUNT_MERGE_USER_ID ||
+      env.CHASE_IMPORT_USER_ID,
   );
 
   const accounts = await fetchAll(() =>
     supabase
       .from("accounts")
       .select(
-        "id, name, institution, type, current_balance, hidden, user_id, connection_provider, external_account_id"
+        "id, name, institution, type, current_balance, hidden, user_id, connection_provider, external_account_id",
       )
-      .eq("user_id", userId)
+      .eq("user_id", userId),
   );
   const connections = await fetchAll(() =>
     supabase
       .from("bank_connections")
       .select("id, institution_name, provider, status, user_id")
       .eq("provider", PROVIDER)
-      .eq("user_id", userId)
+      .eq("user_id", userId),
   );
   const transactions = await fetchAll(() =>
     supabase
       .from("transactions")
       .select(
-        "id, date, description, amount, category_id, category, account_id, account, status, source, upload_source, connection_provider, external_transaction_id, external_status, plaid_transaction_id, is_split, parent_id, not_duplicate, user_id"
+        "id, date, description, amount, category_id, category, account_id, account, status, source, upload_source, connection_provider, external_transaction_id, external_status, plaid_transaction_id, is_split, parent_id, not_duplicate, user_id",
       )
-      .eq("user_id", userId)
+      .eq("user_id", userId),
   );
 
   const manualSummaries = [];
@@ -672,7 +713,7 @@ async function main() {
         targetAccount: resolveByPrefix(accounts, pair.target, pair.label),
         transactions,
         commit,
-      })
+      }),
     );
   }
 
@@ -686,7 +727,7 @@ async function main() {
         targetAccount: resolveByPrefix(accounts, pair.target, pair.label),
         transactions,
         commit,
-      })
+      }),
     );
   }
 
@@ -706,6 +747,8 @@ async function main() {
 }
 
 main().catch(() => {
-  console.error("Operator command failed. Inspect the protected operation report; no error payload is logged.");
+  console.error(
+    "Operator command failed. Inspect the protected operation report; no error payload is logged.",
+  );
   process.exit(1);
 });

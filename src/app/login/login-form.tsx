@@ -33,8 +33,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
   const getEmailRedirectTo = () =>
     `${getAuthOrigin()}/auth/callback?next=${encodeURIComponent(nextPath)}`;
 
-  const getPasswordResetRedirectTo = () =>
-    `${getAuthOrigin()}/reset-password`;
+  const getPasswordResetRedirectTo = () => `${getAuthOrigin()}/reset-password`;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -50,7 +49,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
         credentials.email,
         {
           redirectTo: getPasswordResetRedirectTo(),
-        }
+        },
       );
 
       setIsSubmitting(false);
@@ -199,7 +198,9 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
                   <InputGroupButton
                     type="button"
                     size="icon-xs"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                     aria-pressed={showPassword}
                     title={showPassword ? "Hide password" : "Show password"}
                     onClick={() => setShowPassword((current) => !current)}
@@ -243,8 +244,10 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
         {pendingResetEmail ? (
           <div className="mt-4 rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
             We sent a reset link to{" "}
-            <span className="font-medium text-foreground">{pendingResetEmail}</span>.
-            Check spam if you do not see it.
+            <span className="font-medium text-foreground">
+              {pendingResetEmail}
+            </span>
+            . Check spam if you do not see it.
           </div>
         ) : null}
         {pendingConfirmationEmail ? (
@@ -263,7 +266,9 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
               onClick={handleResendConfirmation}
               disabled={isResending}
             >
-              {isResending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {isResending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : null}
               Resend confirmation email
             </Button>
           </div>
