@@ -42,6 +42,7 @@ export async function runSyncCycle(deps: SyncDependencies): Promise<CycleResult>
           if (changed.length > 50_000 || removed.length > 50_000) throw new Error("Provider cycle is too large. No cycle data was committed.");
           cursor = page.next_cursor;
           if (!page.has_more) {
+            if (now() - start > 45_000) throw new Error("Sync timed out before committing. Retry this connection.");
             return await deps.apply(lease, [...accounts.values()], changed, removed, cursor);
           }
         }
@@ -58,6 +59,6 @@ export async function runSyncCycle(deps: SyncDependencies): Promise<CycleResult>
     throw error;
   } finally {
     // A crashed process can leave only an expiring lease, never a permanent lock.
-    await deps.release(lease, failure);
+    await deps.release(lease, failure).catch(() => { /* The lease expires; preserve the proven ledger result or original failure. */ });
   }
 }

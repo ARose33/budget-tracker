@@ -10,6 +10,7 @@ import { SplitTransactionDialog } from "./split-transaction-dialog";
 import { invalidateFinance, saveError } from "@/lib/finance/cache";
 import { money } from "@/lib/finance/format";
 import { TransactionNote } from "./transaction-note";
+import { TransactionHistory } from "./transaction-history";
 export function TransactionEditor({ id, close }: { id: string; close: () => void }) {
   const query = useQuery({ queryKey: ["transaction", id], queryFn: () => getTransaction(id) });
   if (query.isPending) return <p role="status" className="p-4">Loading transaction…</p>;
@@ -62,6 +63,7 @@ function EditorFields({ latest, close }: { latest: Transaction; close: () => voi
       </div>
     </form>
     <TransactionNote id={transaction.id} />
+    <TransactionHistory id={transaction.id} kind="changes" />
     {transaction.archived_at ? <div><Button variant="outline" disabled={restore.isPending || dirty} onClick={() => restore.mutate()}>{restore.isPending ? "Restoring…" : "Restore from archive"}</Button>{restore.isError ? <p role="alert">{saveError(restore.error)}</p> : null}</div> : null}
     <p className="text-xs text-muted-foreground">Source: {transaction.upload_source || transaction.source || "Historical entry"} · {transaction.plaid_transaction_id ? "Bank connection" : "No bank transaction identifier"}</p>
   </div>;

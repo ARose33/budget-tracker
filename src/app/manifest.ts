@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Budget Tracker",
-    short_name: "Budget",
+    name: "StackMint",
+    short_name: "StackMint",
     description: "Personal budget tracking and financial analysis",
-    start_url: "/accounts",
+    start_url: "/budget",
     scope: "/",
     display: "standalone",
     background_color: "#f8faf7",

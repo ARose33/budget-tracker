@@ -9,7 +9,7 @@ declare owner_id uuid:=(select auth.uid()); category public.budget_categories%ro
   category_type text:=p_command->>'category_type';
 begin
   if owner_id is null then raise exception using errcode='42501',message='Authentication required'; end if;
-  perform pg_advisory_xact_lock(1101,hashtext(owner_id::text));
+  perform pg_advisory_xact_lock(hashtext(owner_id::text),1101);
   if action not in ('create','rename','rename_group') or action is null then raise exception 'Invalid category command'; end if;
   if group_name is null or length(group_name) not between 1 and 150 then raise exception 'Enter a group name of 1 to 150 characters'; end if;
   if action in ('create','rename') and (item_name is null or length(item_name) not between 1 and 150) then raise exception 'Enter a subcategory name of 1 to 150 characters'; end if;

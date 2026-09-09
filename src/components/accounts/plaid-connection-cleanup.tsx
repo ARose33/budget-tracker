@@ -5,22 +5,24 @@ import { usePlaidLink, type PlaidLinkOnSuccess } from "react-plaid-link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Loader2, RefreshCw, Unplug } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { Button } from "@/components/ui/button";
 import { getBankConnections } from "@/lib/queries/accounts";
 import { invalidateFinance } from "@/lib/finance/cache";
 
 export function PlaidConnectionCleanup() {
   const queryClient = useQueryClient();
+  const [disconnectId, setDisconnectId] = useState<string | null>(null);
   const [repairingConnectionId, setRepairingConnectionId] = useState<
     string | null
   >(null);
   const [linkToken, setLinkToken] = useState<string | null>(null);
-  const { data: connections = [] } = useQuery({
+  const { data: connections = [], isError, refetch } = useQuery({
     queryKey: ["bank-connections"],
     queryFn: getBankConnections,
   });
   const inactiveConnections = connections.filter(
-    (connection) => ["inactive", "disconnecting", "disconnect_failed", "disconnected"].includes(connection.status)
+    (connection) => ["active", "error", "inactive", "disconnecting", "disconnect_failed", "disconnected"].includes(connection.status)
   );
   const errorConnections = connections.filter(
     (connection) => connection.status === "error"
@@ -131,12 +133,14 @@ export function PlaidConnectionCleanup() {
     },
   });
 
+  if (isError) return <p role="alert">Bank connection status could not be loaded. <Button variant="outline" onClick={() => refetch()}>Retry</Button></p>;
   if (inactiveConnections.length === 0 && errorConnections.length === 0) {
     return null;
   }
 
   return (
     <div className="space-y-3">
+      <ConfirmAction open={Boolean(disconnectId)} onOpenChange={open => { if (!open) setDisconnectId(null); }} title="Disconnect this bank?" description="Future synchronization stops. All accounts, transactions and connection history remain available." confirmLabel="Confirm disconnect" pending={removeMutation.isPending} onConfirm={() => { if (disconnectId) removeMutation.mutate(disconnectId, { onSuccess: () => setDisconnectId(null) }); }} />
       {errorConnections.length > 0 && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">
           <div className="flex items-start gap-2">
@@ -191,7 +195,7 @@ export function PlaidConnectionCleanup() {
       {inactiveConnections.length > 0 && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm font-medium text-amber-950">
-            Retired Plaid connections
+            Bank connections
           </p>
           <div className="mt-3 space-y-2">
             {inactiveConnections.map((connection) => (
@@ -212,7 +216,7 @@ export function PlaidConnectionCleanup() {
                   size="sm"
                   variant="outline"
                   disabled={removeMutation.isPending || connection.status === "disconnected"}
-                  onClick={() => { if (window.confirm("Disconnect this retired bank connection? Future sync stops. Accounts, transactions and connection history remain available.")) removeMutation.mutate(connection.id); }}
+                  onClick={() => setDisconnectId(connection.id)}
                 >
                   {removeMutation.isPending ? (
                     <Loader2 className="mr-1 h-4 w-4 animate-spin" />

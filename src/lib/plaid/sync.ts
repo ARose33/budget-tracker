@@ -300,10 +300,11 @@ export async function syncPlaidConnectionByItemId(itemId: string) {
     return null;
   }
 
-  await supabase
+  const { error: webhookError } = await supabase
     .from("bank_connections")
     .update({ last_webhook_at: new Date().toISOString() })
     .eq("id", connection.id);
+  if (webhookError) throw webhookError;
 
   return syncPlaidConnection({
     ...connection,

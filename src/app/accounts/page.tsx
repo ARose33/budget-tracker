@@ -1,10 +1,11 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getAccounts } from "@/lib/queries/accounts";
+import { getAccounts, getBankConnections } from "@/lib/queries/accounts";
 import { useState } from "react";
 import Link from "next/link";
 import { ProviderReviews } from "@/components/accounts/provider-reviews";
+import { LegacyConnections } from "@/components/accounts/legacy-connections";
 import { invalidateFinance, saveError } from "@/lib/finance/cache";
 import { money } from "@/lib/finance/format";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,6 +38,7 @@ const typeIcons: Record<string, LucideIcon> = {
 export default function AccountsPage() {
   const queryClient = useQueryClient();
   const [history, setHistory] = useState(false);
+  const connections = useQuery({ queryKey: ["bank-connections"], queryFn: getBankConnections });
 
   const { data: accounts = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ["accounts"],
@@ -93,9 +95,7 @@ export default function AccountsPage() {
     accounts: visibleAccounts.filter((account) => (account.type ?? "Other") === type),
   })).filter((group) => group.accounts.length > 0);
 
-  const hasPlaidConnections = accounts.some(
-    (account) => account.connection_provider === "plaid"
-  );
+  const hasPlaidConnections = connections.data?.some(connection => connection.status === "active" || connection.status === "error") ?? false;
 
   if (isError) return <div role="alert" className="rounded border p-6">{saveError(error)} <Button variant="outline" onClick={() => refetch()}>Retry</Button></div>;
   if (isLoading) {
@@ -142,6 +142,7 @@ export default function AccountsPage() {
 
       <PlaidConnectionCleanup />
       <ProviderReviews />
+      <LegacyConnections />
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={history} onChange={event => setHistory(event.target.checked)} />Show hidden and other historical accounts</label>
       <p className="text-xs text-muted-foreground">Hiding an account does not exclude its transactions from Budget. Bank disconnection retains the ledger.</p>
 
@@ -164,6 +165,7 @@ export default function AccountsPage() {
                       <div className="min-w-0 flex-1">
                         <p className="font-medium">{a.name} {a.hidden ? <Badge variant="outline">Hidden</Badge> : null}</p>
                         <p className="mt-1 text-lg font-semibold tabular-nums">{a.current_balance == null ? "Balance unavailable" : money(a.current_balance)}</p>
+                        {history && a.initial_value != null ? <p className="text-xs text-muted-foreground">Recorded opening value: {money(a.initial_value)}{a.initial_date ? " · " + a.initial_date.slice(0, 10) : ""}</p> : null}
                         <Link className="text-xs text-primary underline" href={"/transactions?accountId=" + a.id + "&history=all"}>View all activity and history</Link>
                         <p className="text-sm text-muted-foreground">
                           {a.institution}

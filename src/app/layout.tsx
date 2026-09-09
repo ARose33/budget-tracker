@@ -6,13 +6,13 @@ import { Providers } from "@/lib/providers";
 import { AppShell } from "@/components/layout/app-shell";
 
 export const metadata: Metadata = {
-  applicationName: "Budget Tracker",
-  title: "Budget Tracker",
+  applicationName: "StackMint",
+  title: "StackMint",
   description: "Personal budget tracking and financial analysis",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Budget Tracker",
+    title: "StackMint",
     statusBarStyle: "default",
   },
   formatDetection: {

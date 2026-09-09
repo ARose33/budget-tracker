@@ -17,10 +17,6 @@ import { supabase } from "@/lib/supabase/client";
 
 type Mode = "sign-in" | "sign-up" | "reset-request";
 
-const productionOrigin =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-  "https://budget-tracker-beta-bice.vercel.app";
-
 export function LoginForm({ nextPath }: { nextPath: string }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("sign-in");
@@ -32,10 +28,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
   const [pendingConfirmationEmail, setPendingConfirmationEmail] = useState("");
   const [pendingResetEmail, setPendingResetEmail] = useState("");
 
-  const getAuthOrigin = () =>
-    window.location.origin.includes("localhost")
-      ? productionOrigin
-      : window.location.origin;
+  const getAuthOrigin = () => window.location.origin;
 
   const getEmailRedirectTo = () =>
     `${getAuthOrigin()}/auth/callback?next=${encodeURIComponent(nextPath)}`;
@@ -148,7 +141,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
         </div>
         <CardTitle>
           {mode === "sign-in"
-            ? "Sign in to Budget Tracker"
+            ? "Sign in to StackMint"
             : mode === "sign-up"
               ? "Create your account"
               : "Reset your password"}

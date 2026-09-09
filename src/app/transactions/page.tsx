@@ -26,6 +26,7 @@ import { BulkActionsBar } from "@/components/transactions/bulk-actions-bar";
 import { CategorySelect } from "@/components/transactions/category-select";
 import { SplitTransactionDialog } from "@/components/transactions/split-transaction-dialog";
 import { CategorizeTransactionsDialog } from "@/components/transactions/categorize-transactions-dialog";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -70,6 +71,7 @@ function TransactionsContent() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const pageSize = 50;
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmArchive, setConfirmArchive] = useState(false);
 
   const handleFiltersChange = (nextFilters: TransactionFilters) => {
     setPage(0);
@@ -225,7 +227,7 @@ function TransactionsContent() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl font-bold">Transactions</h2>
         <CategorizeTransactionsDialog
-          uncategorizedCount={categorizationCounts?.uncategorized ?? 0}
+          uncategorizedCount={categorizationCounts?.eligible ?? 0}
         />
       </div>
 
@@ -235,6 +237,7 @@ function TransactionsContent() {
         statusCounts={categorizationCounts}
       />
 
+      <ConfirmAction open={confirmArchive} onOpenChange={setConfirmArchive} title={"Archive " + selected.size + " selected transactions?"} description="These records leave active totals and remain accessible in transaction history. You can restore them later." confirmLabel="Confirm archive" pending={deleteMutation.isPending} onConfirm={() => deleteMutation.mutate(undefined, { onSuccess: () => setConfirmArchive(false) })} />
       <BulkActionsBar
         selectedCount={selected.size}
         onSetCategory={(cid) => bulkCategoryMutation.mutate(cid)}
@@ -242,7 +245,7 @@ function TransactionsContent() {
         onFinalize={() => bulkFinalizeMutation.mutate()}
         onSetDescription={(d) => bulkDescriptionMutation.mutate(d)}
         onSetDate={(d) => bulkDateMutation.mutate(d)}
-        onArchive={() => { if (window.confirm("Archive these selected transactions? They will leave active totals and remain accessible in History.")) deleteMutation.mutate(); }}
+        onArchive={() => setConfirmArchive(true)}
         onMarkNotDuplicate={() => notDuplicateMutation.mutate()}
       />
 
@@ -258,20 +261,20 @@ function TransactionsContent() {
               <thead className="bg-muted">
                 <tr>
                   <th className="p-3 w-10">
-                    <Checkbox
+                    <Checkbox aria-label="Select all visible transactions"
                       checked={allSelected}
                       onCheckedChange={toggleAll}
                     />
                   </th>
-                  <SortableHeader field="date" sort={sort} onSort={handleSort}>Date</SortableHeader>
+                  <SortableHeader field="date" sort={sort} onSort={handleSort} className="hidden sm:table-cell">Date</SortableHeader>
                   <SortableHeader field="description" sort={sort} onSort={handleSort}>Description</SortableHeader>
                   <SortableHeader field="amount" sort={sort} onSort={handleSort} align="right">Amount</SortableHeader>
-                  <SortableHeader field="group" sort={sort} onSort={handleSort} className="w-[140px]">Group</SortableHeader>
-                  <SortableHeader field="lineItem" sort={sort} onSort={handleSort} className="w-[180px]">Line Item</SortableHeader>
-                  <SortableHeader field="account" sort={sort} onSort={handleSort}>Account</SortableHeader>
-                  <SortableHeader field="status" sort={sort} onSort={handleSort} align="center">Status</SortableHeader>
-                  <th className="text-center p-3 w-16">Note</th>
-                  <th className="text-center p-3 w-20">Actions</th>
+                  <SortableHeader field="group" sort={sort} onSort={handleSort} className="hidden lg:table-cell w-[140px]">Group</SortableHeader>
+                  <SortableHeader field="lineItem" sort={sort} onSort={handleSort} className="hidden md:table-cell w-[180px]">Line Item</SortableHeader>
+                  <SortableHeader field="account" sort={sort} onSort={handleSort} className="hidden lg:table-cell">Account</SortableHeader>
+                  <SortableHeader field="status" sort={sort} onSort={handleSort} align="center" className="hidden md:table-cell">Status</SortableHeader>
+                  <th className="hidden md:table-cell text-center p-3 w-16">Note</th>
+                  <th className="hidden md:table-cell text-center p-3 w-20">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -314,7 +317,7 @@ function TransactionsContent() {
                 variant="outline"
                 size="sm"
                 disabled={page === 0}
-                onClick={() => setPage((p) => p - 1)}
+                onClick={() => { setSelected(new Set()); setPage((p) => p - 1); }}
               >
                 <ChevronLeft className="h-4 w-4" />
                 Prev
@@ -326,7 +329,7 @@ function TransactionsContent() {
                 variant="outline"
                 size="sm"
                 disabled={page >= totalPages - 1}
-                onClick={() => setPage((p) => p + 1)}
+                onClick={() => { setSelected(new Set()); setPage((p) => p + 1); }}
               >
                 Next
                 <ChevronRight className="h-4 w-4" />
@@ -437,11 +440,12 @@ function TransactionRow({
       aria-expanded={t.is_split ? expanded : undefined}
     >
       <td className="p-3">
-        <Checkbox checked={isSelected} onCheckedChange={onToggle} />
+        <Checkbox aria-label={"Select " + (t.description || "transaction") + " on " + t.date} checked={isSelected} onCheckedChange={onToggle} />
       </td>
-      <td className="p-3 whitespace-nowrap">{t.date}</td>
-      <td className="p-3 max-w-[250px] truncate" title={t.description ?? ""}>
+      <td className="hidden sm:table-cell p-3 whitespace-nowrap">{t.date}</td>
+      <td className="p-3 max-w-[150px] sm:max-w-[250px] truncate" title={t.description ?? ""}>
         <button className="text-left hover:underline" onClick={onEdit}>{t.description || "Transaction"}</button>
+        <p className="md:hidden text-xs text-muted-foreground truncate">{t.date} · {t.is_split ? "Split" : lineItemName}</p>
         {t.archived_at ? <Badge variant="outline">Archived</Badge> : t.external_status === "removed" ? <Badge variant="outline">Removed at source</Badge> : null}
         {t.is_split && (
           <Badge
@@ -471,12 +475,12 @@ function TransactionRow({
         {formatCurrency(t.amount)}
       </td>
       <td
-        className="p-3 max-w-[140px] truncate text-muted-foreground text-xs"
+        className="hidden lg:table-cell p-3 max-w-[140px] truncate text-muted-foreground text-xs"
         title={groupName}
       >
         {groupName}
       </td>
-      <td className="p-3">
+      <td className="hidden md:table-cell p-3">
         {t.is_split ? (
           <span className="text-xs text-muted-foreground">Multiple categories</span>
         ) : (
@@ -489,10 +493,10 @@ function TransactionRow({
           />
         )}
       </td>
-      <td className="p-3 text-muted-foreground text-xs">
+      <td className="hidden lg:table-cell p-3 text-muted-foreground text-xs">
         {t.accounts?.name ?? "—"}
       </td>
-      <td className="p-3 text-center">
+      <td className="hidden md:table-cell p-3 text-center">
         <Badge
           variant="outline"
           className={cn(
@@ -512,10 +516,10 @@ function TransactionRow({
               : "Uncategorized"}
         </Badge>
       </td>
-      <td className="p-3 text-center">
+      <td className="hidden md:table-cell p-3 text-center">
         <Button variant="ghost" size="icon-sm" onClick={onEdit} aria-label="Open transaction details and note"><StickyNote className="size-4" /></Button>
       </td>
-      <td className="p-3 text-center">
+      <td className="hidden md:table-cell p-3 text-center">
         <div className="flex items-center justify-center gap-1">
           {t.categorization_status === "pending" && (
             <Button

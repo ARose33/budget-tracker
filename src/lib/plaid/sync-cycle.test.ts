@@ -51,3 +51,15 @@ test("provider NOT_READY and oversize cycles never commit partial activity", asy
   await assert.rejects(runSyncCycle(second.deps), /supported size/);
   assert.equal(second.applied.length, 0);
 });
+
+test("lease-release outages preserve committed results and late final pages do not commit", async () => {
+  const first = dependencies();
+  first.deps.release = async () => { throw new Error("Synthetic release outage"); };
+  assert.deepEqual(await runSyncCycle(first.deps), result);
+  const second = dependencies();
+  let time = 0;
+  second.deps.now = () => time;
+  second.deps.page = async () => { time = 46000; return page("too-late"); };
+  await assert.rejects(runSyncCycle(second.deps), /timed out/);
+  assert.deepEqual(second.applied, []);
+});

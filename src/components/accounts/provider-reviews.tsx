@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { Button } from "@/components/ui/button";
 import { getProviderReviews, resolveProviderReview, type ProviderReview } from "@/lib/queries/provider-reviews";
 import { getAccounts } from "@/lib/queries/accounts";
@@ -24,11 +25,13 @@ export function ProviderReviews() {
 }
 function Review({ review, names }: { review: ProviderReview; names: Record<string, string> }) {
   const client = useQueryClient();
+  const [confirm, setConfirm] = useState(false);
   const mutation = useMutation({ mutationFn: (decision: "accept" | "keep") => resolveProviderReview(review, decision), onSuccess: () => invalidateFinance(client) });
   const proposed = review.proposed_values;
   const bankBalance = review.entity_type === "account";
   const label = bankBalance ? "Use bank balance" : review.entity_id ? "Accept these values" : "Add as separate transaction";
   return <article className="space-y-3 rounded-lg border p-4">
+    <ConfirmAction open={confirm} onOpenChange={setConfirm} title={label + "?"} description="Apply the bank values shown in this review? Earlier values will remain in history." confirmLabel="Confirm bank update" pending={mutation.isPending} onConfirm={() => mutation.mutate("accept", { onSuccess: () => setConfirm(false) })} />
     <h3 className="text-sm font-medium">{bankBalance ? "Account balance" : proposed.description || "Bank transaction"}</h3>
     <p className="text-xs text-muted-foreground">{review.reason}</p>
     <div className="grid gap-3 text-sm sm:grid-cols-2">{[[review.status === "pending" ? "Current" : "Preserved earlier values", review.status === "pending" ? review.current : review.existing_values], ["Bank update", proposed]].map(([label, raw]) => {
@@ -37,7 +40,7 @@ function Review({ review, names }: { review: ProviderReview; names: Record<strin
     })}</div>
     {review.candidates.length ? <details><summary className="cursor-pointer text-xs font-medium">Possible existing activity ({review.candidates.length} shown)</summary><ul className="mt-2 space-y-2 text-xs">{review.candidates.map(candidate => <li key={candidate.id}>{candidate.date} · {candidate.description} · {money(candidate.amount)}</li>)}</ul></details> : null}
     {bankBalance ? <p className="text-xs text-muted-foreground">Using the bank balance also enables future bank balance updates for this account.</p> : null}
-    {review.status === "pending" ? <div className="flex flex-wrap gap-2"><Button size="sm" disabled={mutation.isPending} onClick={() => { if (window.confirm(label + "? Review the current and proposed values above. Existing history will be retained.")) mutation.mutate("accept"); }}>{label}</Button><Button size="sm" variant="outline" disabled={mutation.isPending} onClick={() => mutation.mutate("keep")}>Keep current ledger</Button></div> : <p className="text-xs font-medium">Decision: {review.status}</p>}
+    {review.status === "pending" ? <div className="flex flex-wrap gap-2"><Button size="sm" disabled={mutation.isPending} onClick={() => setConfirm(true)}>{label}</Button><Button size="sm" variant="outline" disabled={mutation.isPending} onClick={() => mutation.mutate("keep")}>Keep current ledger</Button></div> : <p className="text-xs font-medium">Decision: {review.status}</p>}
     {mutation.isError ? <p role="alert" className="text-sm text-destructive">{saveError(mutation.error)}</p> : null}
   </article>;
 }

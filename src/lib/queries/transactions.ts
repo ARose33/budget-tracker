@@ -1,6 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
 import { z } from "zod";
-import { getCurrentUserId } from "@/lib/supabase/auth";
 
 export interface Transaction {
   row_version: number;
@@ -63,6 +62,7 @@ export interface TransactionFilters {
 export type CategorizationStatus = "uncategorized" | "pending" | "final";
 
 export interface CategorizationCounts {
+  eligible: number;
   uncategorized: number;
   pending: number;
   final: number;
@@ -157,6 +157,7 @@ export async function updateTransactionNotes(transactionId: string, notes: strin
     method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transactionId, notes, expectedVersion: original.version, expectedHash: original.hash }),
   });
   if (!response.ok) throw new Error(response.status === 409 ? "This note changed. Close and reopen it before saving." : "Could not save transaction note.");
+  return noteSchema.parse(await response.json());
 }
 export async function findDuplicates() {
   const { data, error } = await supabase.rpc("find_duplicate_transactions");
@@ -164,16 +165,9 @@ export async function findDuplicates() {
   return data ?? [];
 }
 export async function getCategorizationCounts(): Promise<CategorizationCounts> {
-  const userId = await getCurrentUserId();
-  const countStatus = async (status: CategorizationStatus) => {
-    const { count, error } = await supabase.from("transactions").select("id", { count: "exact", head: true })
-      .eq("user_id", userId).eq("categorization_status", status).is("parent_id", null).is("archived_at", null)
-      .or("external_status.is.null,external_status.neq.removed");
-    if (error) throw error;
-    return count ?? 0;
-  };
-  const [uncategorized, pending, final] = await Promise.all([countStatus("uncategorized"), countStatus("pending"), countStatus("final")]);
-  return { uncategorized, pending, final };
+  const {data,error}=await supabase.rpc("stackmint_categorization_counts",{});
+  if(error)throw error;
+  return z.object({uncategorized:z.number(),pending:z.number(),final:z.number(),eligible:z.number()}).parse(data);
 }
 export async function categorizeNextTransactions(runId: string) {
   const response = await fetch("/api/transactions/categorize", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ runId }) });
