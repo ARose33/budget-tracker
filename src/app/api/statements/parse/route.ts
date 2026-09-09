@@ -5,63 +5,11 @@ import {
   type StatementAccountType,
   type StatementInstitution,
 } from "@/lib/statements/parser";
-import { getErrorMessage } from "@/lib/api/errors";
+import { z } from "zod";
+import { extractPdfBytes, MAX_PDF_BYTES } from "@/lib/statements/pdf";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
-
-const MAX_FILE_SIZE = 15 * 1024 * 1024;
-
-async function extractPdfLines(bytes: Uint8Array) {
-  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const document = await getDocument({
-    data: bytes,
-    useSystemFonts: true,
-  }).promise;
-  const lines: string[] = [];
-
-  try {
-    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
-      const page = await document.getPage(pageNumber);
-      const content = await page.getTextContent();
-      const items = content.items
-        .filter((item): item is typeof item & { str: string; transform: number[] } =>
-          "str" in item && "transform" in item
-        )
-        .map((item) => ({
-          text: item.str,
-          x: item.transform[4],
-          y: item.transform[5],
-        }))
-        .filter((item) => item.text.trim());
-
-      const rows: Array<{ y: number; items: typeof items }> = [];
-      for (const item of items) {
-        let row = rows.find((candidate) => Math.abs(candidate.y - item.y) <= 2);
-        if (!row) {
-          row = { y: item.y, items: [] };
-          rows.push(row);
-        }
-        row.items.push(item);
-      }
-
-      rows
-        .sort((a, b) => b.y - a.y)
-        .forEach((row) => {
-          lines.push(
-            row.items
-              .sort((a, b) => a.x - b.x)
-              .map((item) => item.text)
-              .join(" ")
-          );
-        });
-    }
-  } finally {
-    await document.destroy();
-  }
-
-  return lines;
-}
 
 export async function POST(request: Request) {
   try {
@@ -81,15 +29,19 @@ export async function POST(request: Request) {
     if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
       return NextResponse.json({ error: "Only PDF statements are supported" }, { status: 415 });
     }
-    if (file.size > MAX_FILE_SIZE) {
+    if (file.size > MAX_PDF_BYTES) {
       return NextResponse.json({ error: "PDF files must be 15 MB or smaller" }, { status: 413 });
     }
 
+    const targetYear = z.coerce.number().int().min(1900).max(2100).safeParse(formData.get("targetYear"));
+    if (!targetYear.success) return NextResponse.json({ error: "Provide targetYear (1900–2100); no year is assumed." }, { status: 400 });
     const accountType = formData.get("accountType");
     const institution = formData.get("institution");
-    const lines = await extractPdfLines(new Uint8Array(await file.arrayBuffer()));
+    const document = await extractPdfBytes(new Uint8Array(await file.arrayBuffer()));
+    const lines = document.pages.flatMap(page => page.lines.map(line => line.text));
+    if (!lines.length) return NextResponse.json({ error: "This PDF has no extractable text. Use a text-based statement." }, { status: 422 });
     const result = parseStatementText(lines, {
-      targetYear: 2023,
+      targetYear: targetYear.data,
       accountTypeHint:
         accountType === "checking" ||
         accountType === "savings" ||
@@ -110,7 +62,7 @@ export async function POST(request: Request) {
       fileName: file.name,
       pagesHaveText: lines.length > 0,
     });
-  } catch (error) {
-    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Could not read this PDF. Check that it is readable, not password-protected, and at most 100 pages." }, { status: 422 });
   }
 }

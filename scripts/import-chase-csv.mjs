@@ -1,3 +1,5 @@
+import { requireExistingDataOperation, assertOperationTarget } from "./lib/operator-safety.mjs";
+const operationPlan = process.argv.includes("--local-only") && !process.argv.includes("--commit") ? null : requireExistingDataOperation("csv-import",{write:process.argv.includes("--commit")});
 import fs from "node:fs";
 import path from "node:path";
 import Papa from "papaparse";
@@ -494,11 +496,13 @@ async function main() {
   }
 
   const env = parseEnv();
+  assertOperationTarget(operationPlan, env.NEXT_PUBLIC_SUPABASE_URL);
   const supabase = createClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
   const userId = await getUserId(supabase, env.CHASE_IMPORT_USER_ID);
+  assertOperationTarget(operationPlan, env.NEXT_PUBLIC_SUPABASE_URL, userId);
   const accountId = await getOrCreateAccount(supabase, userId, !commit);
   const categoryDefs = Array.from(
     new Map(rows.map((row) => [`${row.category.group_name}::${row.category.line_item_name}`, row.category])).values()
@@ -551,7 +555,7 @@ async function main() {
   );
 }
 
-main().catch((error) => {
-  console.error(error);
+main().catch(() => {
+  console.error("Operator command failed. Inspect the protected operation report; no error payload is logged.");
   process.exit(1);
 });

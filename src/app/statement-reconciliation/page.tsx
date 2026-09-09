@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, FileSearch, Link2, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -10,8 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 
-type Candidate = { id: string; date: string; amount: number; description: string; source?: string; connectionProvider?: string };
+type Candidate = { id: string; row_version: number; date: string; amount: number; description: string; source?: string; connectionProvider?: string; archived_at?: string | null; external_status?: string | null };
 type Review = {
+  row_version: number; status: string; decision_note: string | null; reviewed_at: string | null; matched_transaction_id: string | null; imported_transaction_id: string | null;
   id: string; review_type: string; account_name: string | null; amount: number; description: string;
   transaction_date: string; posted_date: string | null; proposed_date: string; statement_file: string;
   statement_period_start: string | null; statement_period_end: string | null; page: number | null;
@@ -36,25 +38,28 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
 export default function StatementReconciliationPage() {
   const queryClient = useQueryClient();
   const [type, setType] = useState("all");
+  const [status, setStatus] = useState("pending");
+  const [confirmImport, setConfirmImport] = useState<string | null>(null);
   const [year, setYear] = useState("all");
   const [account, setAccount] = useState("all");
   const [page, setPage] = useState(1);
   const [selectedCandidate, setSelectedCandidate] = useState<Record<string, string>>({});
-  const [note, setNote] = useState("");
-  const queryString = useMemo(() => new URLSearchParams({ type, year, account, page: String(page) }).toString(), [type, year, account, page]);
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const queryString = useMemo(() => new URLSearchParams({ type, status, year, account, page: String(page) }).toString(), [type, status, year, account, page]);
   const { data, isLoading, error } = useQuery<ResponseData>({
-    queryKey: ["statement-reconciliation", type, year, account, page],
+    queryKey: ["statement-reconciliation", type, status, year, account, page],
     queryFn: () => requestJson(`/api/statement-reconciliation?${queryString}`),
   });
   const mutation = useMutation({
     mutationFn: (input: { reviewId: string; decision: string; candidateTransactionId?: string }) => requestJson(
       "/api/statement-reconciliation",
-      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...input, note }) }
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...input, note: notes[input.reviewId] ?? "", version: data?.items[0]?.row_version, candidateVersion: data?.items[0]?.candidates.find(candidate => candidate.id === input.candidateTransactionId)?.row_version }) }
     ),
     onSuccess: async () => {
-      setNote("");
+      setConfirmImport(null);
+      if (page > 1 && data && page >= data.count) setPage(page - 1);
       toast.success("Review decision saved");
-      await queryClient.invalidateQueries({ queryKey: ["statement-reconciliation"] });
+      await queryClient.invalidateQueries();
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Could not save decision"),
   });
@@ -76,6 +81,7 @@ export default function StatementReconciliationPage() {
       <Card><CardContent className="space-y-2 p-4"><div className="flex justify-between text-sm"><span>{data?.summary.total ?? 0} pending</span><span>{completed} reviewed</span></div><Progress value={data?.summary.totalQueue ? (completed / data.summary.totalQueue) * 100 : 100} /></CardContent></Card>
 
       <div className="flex flex-wrap gap-2">
+        <select aria-label="Review history" value={status} onChange={filterChanged(setStatus)} className="h-9 rounded-lg border bg-background px-3 text-sm"><option value="pending">Pending reviews</option><option value="all">All review history</option><option value="matched">Matched</option><option value="imported">Imported</option><option value="legitimate_duplicate">Legitimate duplicates</option><option value="ignored">Ignored</option></select>
         <select aria-label="Review type" value={type} onChange={filterChanged(setType)} className="h-9 rounded-lg border bg-background px-3 text-sm"><option value="all">All review types</option>{Object.entries(labels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
         <select aria-label="Year" value={year} onChange={filterChanged(setYear)} className="h-9 rounded-lg border bg-background px-3 text-sm"><option value="all">All years</option>{data?.summary.years.map((value) => <option key={value}>{value}</option>)}</select>
         <select aria-label="Account" value={account} onChange={filterChanged(setAccount)} className="h-9 max-w-xs rounded-lg border bg-background px-3 text-sm"><option value="all">All accounts</option>{data?.summary.accounts.map((value) => <option key={value}>{value}</option>)}</select>
@@ -83,7 +89,7 @@ export default function StatementReconciliationPage() {
 
       {isLoading && <Card><CardContent className="p-8 text-center text-muted-foreground">Loading review queue…</CardContent></Card>}
       {error && <Card><CardContent className="p-8 text-center text-destructive">{error.message}</CardContent></Card>}
-      {!isLoading && !error && !item && <Card><CardContent className="flex flex-col items-center gap-2 p-10 text-center"><CheckCircle2 className="h-10 w-10 text-emerald-600" /><h2 className="font-semibold">No reviews in this view</h2><p className="text-sm text-muted-foreground">When the entire queue is complete, this tab disappears from navigation.</p></CardContent></Card>}
+      {!isLoading && !error && !item && <Card><CardContent className="flex flex-col items-center gap-2 p-10 text-center"><CheckCircle2 className="h-10 w-10 text-emerald-600" /><h2 className="font-semibold">No reviews in this view</h2><p className="text-sm text-muted-foreground">Completed decisions remain available in All review history.</p></CardContent></Card>}
 
       {item && <div className="grid gap-4 lg:grid-cols-2">
         <Card>
@@ -106,13 +112,16 @@ export default function StatementReconciliationPage() {
                 <div className="min-w-0 flex-1"><div className="flex justify-between gap-2"><span className="font-medium">{candidate.description}</span><span className="tabular-nums">{money.format(candidate.amount)}</span></div><p className="text-xs text-muted-foreground">{candidate.date} · {candidate.source ?? candidate.connectionProvider ?? "existing"}</p></div>
               </label>
             ))}
-            <Textarea placeholder="Optional review note" value={note} onChange={(event) => setNote(event.target.value)} />
+            {item.status !== "pending" ? <div className="space-y-2 rounded-lg border p-3 text-sm"><p>Saved decision: {item.status.replaceAll("_", " ")}</p>{item.decision_note && <p className="whitespace-pre-wrap">{item.decision_note}</p>}{item.reviewed_at && <p className="text-xs text-muted-foreground">{new Date(item.reviewed_at).toLocaleString()}</p>}{(item.imported_transaction_id || item.matched_transaction_id) && <Link className="underline" href={`/transactions?id=${item.imported_transaction_id || item.matched_transaction_id}&history=all`}>Open retained transaction</Link>}</div> : <>
+            <Textarea aria-label="Optional review note" placeholder="Optional review note" value={notes[item.id] ?? ""} onChange={(event) => setNotes(current => ({ ...current, [item.id]: event.target.value }))} />
             <div className="grid gap-2 sm:grid-cols-2">
               <Button disabled={!selectedCandidate[item.id] || mutation.isPending} onClick={() => mutation.mutate({ reviewId: item.id, decision: "matched", candidateTransactionId: selectedCandidate[item.id] })}><Link2 />Match selected</Button>
-              <Button variant="outline" disabled={mutation.isPending} onClick={() => mutation.mutate({ reviewId: item.id, decision: "imported" })}><Upload />Import statement record</Button>
+              <Button variant="outline" disabled={mutation.isPending} onClick={() => setConfirmImport(item.id)}><Upload />Review import</Button>
               <Button variant="outline" disabled={mutation.isPending} onClick={() => mutation.mutate({ reviewId: item.id, decision: "legitimate_duplicate" })}>Keep as legitimate duplicate</Button>
               <Button variant="ghost" disabled={mutation.isPending} onClick={() => mutation.mutate({ reviewId: item.id, decision: "ignored" })}>Ignore statement record</Button>
             </div>
+            {confirmImport === item.id && <div className="space-y-2 rounded-lg border p-3 text-sm"><p>Add {money.format(item.amount)} on {item.proposed_date} to {item.account_name}? This creates a separate transaction, even if a similar record exists.</p><div className="flex gap-2"><Button disabled={mutation.isPending} onClick={() => mutation.mutate({ reviewId: item.id, decision: "imported" })}>Confirm import</Button><Button variant="ghost" onClick={() => setConfirmImport(null)}>Cancel</Button></div></div>}
+            </>}
           </CardContent>
         </Card>
       </div>}

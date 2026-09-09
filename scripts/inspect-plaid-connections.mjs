@@ -1,3 +1,5 @@
+import { requireExistingDataOperation } from "./lib/operator-safety.mjs";
+requireExistingDataOperation("inspect");
 import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";

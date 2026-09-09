@@ -34,6 +34,11 @@ export type Database = Omit<Baseline, "public"> & {
       }>;
     };
     Functions: Baseline["public"]["Functions"] & {
+      stackmint_categorization_counts: RPC<Record<string, never>>;
+      stackmint_transaction_history: RPC<{ p_id: string; p_kind?: string; p_page?: number }>;
+      stackmint_legacy_connections: RPC<Record<string, never>>;
+      stackmint_reconciliation: RPC<{ p_filters?: Json; p_summary_only?: boolean }>;
+      stackmint_resolve_reconciliation: RPC<{ p_id: string; p_version: number; p_decision: string; p_candidate_id?: string | null; p_candidate_version?: number | null; p_note?: string | null }>;
       stackmint_begin_categorization: RPC<{ p_id: string; p_token: string }>;
       stackmint_finish_categorization: RPC<{ p_id: string; p_token: string; p_items?: Json }>;
       stackmint_categorization_matches: RPC<{ p_ids: string[] }>;

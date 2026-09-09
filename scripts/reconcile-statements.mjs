@@ -1,3 +1,4 @@
+import { requireExistingDataOperation, assertOperationTarget } from "./lib/operator-safety.mjs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
@@ -15,6 +16,9 @@ import {
   verifyBatchReceipt,
 } from "./lib/statement-review.mjs";
 
+const operation = process.argv[2] && !process.argv[2].startsWith("--") ? process.argv[2] : "dry-run";
+const writeOperation = ["apply","rollback"].includes(operation);
+const operationPlan = (["export","review"].includes(operation) || (operation==="dry-run" && argument("snapshot") && argument("statements"))) ? null : requireExistingDataOperation("statements:" + operation,{write:writeOperation});
 const repoRoot = process.cwd();
 const defaultStatementsRoot = path.join(repoRoot, "Statements", "Budget Input");
 const defaultOutputRoot = path.join(repoRoot, "reports", "statement-reconciliation");
@@ -260,7 +264,7 @@ function markdownReport(report) {
       .join("reports", "statement-reconciliation", "latest", "reconciliation.json")
       .replaceAll("\\", "/")}\``,
     "",
-    "After reviewing and editing the manifest, validate it to receive its current approval token. Apply only one account/month batch at a time. The apply command performs a server-side rollback validation, uses deterministic external IDs, verifies every stored field after the write, and emits a batch-specific receipt. It never updates or deletes an existing transaction.",
+    "After reviewing and editing the manifest, validate it to receive its current approval token. Apply only one account/month batch at a time. The apply command requires a separately approved change plan and verified recovery. It atomically inserts a bounded batch with a durable database receipt. No rollback dry-run is claimed. The legacy rollback command now archives unchanged v2 receipt rows and never deletes records.",
   ];
   return `${sections.join("\n")}\n`;
 }
@@ -296,8 +300,9 @@ async function exportReport(report, outputDirectory) {
 }
 
 async function dryRun() {
-  const env = await loadEnvironment(repoRoot);
-  const supabase = createSupabase(env);
+  const snapshotPath = argument("snapshot");
+  const env = snapshotPath ? null : await loadEnvironment(repoRoot);
+  if (env) assertOperationTarget(operationPlan, env.NEXT_PUBLIC_SUPABASE_URL);
   const statementsRoot = path.resolve(argument("statements") ?? defaultStatementsRoot);
   const outputDirectory = path.resolve(argument("output") ?? path.join(defaultOutputRoot, "latest"));
   const throughDate = argument("through") ?? new Date().toISOString().slice(0, 10);
@@ -309,7 +314,7 @@ async function dryRun() {
     console.log(`[${index}/${count}] ${path.relative(statementsRoot, filePath)}`);
   });
   console.log("Loading Supabase accounts and transactions (read-only)...");
-  const snapshot = await loadSupabaseSnapshot(supabase, env.STATEMENT_IMPORT_USER_ID);
+  const snapshot = snapshotPath ? JSON.parse(await fs.readFile(path.resolve(snapshotPath), "utf8")) : await loadSupabaseSnapshot(createSupabase(env), env.STATEMENT_IMPORT_USER_ID);
   const report = await buildReconciliationReport({
     statementsRoot,
     snapshot,
@@ -352,6 +357,7 @@ async function applyReport() {
   const report = JSON.parse(await fs.readFile(path.resolve(reportPath), "utf8"));
   const manifest = JSON.parse(await fs.readFile(path.resolve(manifestPath), "utf8"));
   const env = await loadEnvironment(repoRoot);
+  assertOperationTarget(operationPlan, env.NEXT_PUBLIC_SUPABASE_URL);
   const supabase = createSupabase(env);
   const filters = {
     account: argument("account"),
@@ -374,7 +380,7 @@ async function applyReport() {
     `${JSON.stringify({ ...result, appliedAt: new Date().toISOString() }, null, 2)}\n`,
     "utf8"
   );
-  console.log(JSON.stringify({ ...result, receiptPath }, null, 2));
+  console.log(JSON.stringify({ batchId: result.batchId, inserted: result.inserted, receiptPath }, null, 2));
 }
 
 async function prepareReview() {
@@ -382,6 +388,7 @@ async function prepareReview() {
   if (!reportPath) throw new Error("--report=<path-to-reconciliation.json> is required.");
   const report = JSON.parse(await fs.readFile(path.resolve(reportPath), "utf8"));
   const env = await loadEnvironment(repoRoot);
+  assertOperationTarget(operationPlan, env.NEXT_PUBLIC_SUPABASE_URL);
   const snapshot = await loadSupabaseSnapshot(
     createSupabase(env),
     env.STATEMENT_IMPORT_USER_ID
@@ -466,6 +473,7 @@ async function verifyReceipt() {
     : null;
   const receipt = JSON.parse(await fs.readFile(path.resolve(receiptPath), "utf8"));
   const env = await loadEnvironment(repoRoot);
+  assertOperationTarget(operationPlan, env.NEXT_PUBLIC_SUPABASE_URL);
   const result = await verifyBatchReceipt({
     supabase: createSupabase(env),
     report,
@@ -479,6 +487,8 @@ async function rollbackReceipt() {
   if (!receiptPath) throw new Error("--receipt is required.");
   const receipt = JSON.parse(await fs.readFile(path.resolve(receiptPath), "utf8"));
   const env = await loadEnvironment(repoRoot);
+  assertOperationTarget(operationPlan, env.NEXT_PUBLIC_SUPABASE_URL);
+  assertOperationTarget(operationPlan, env.NEXT_PUBLIC_SUPABASE_URL, receipt.userId);
   const result = await rollbackBatchReceipt({
     supabase: createSupabase(env),
     receipt,

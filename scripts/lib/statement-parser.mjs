@@ -1,3 +1,4 @@
+import { extractPdfBytes } from "../../src/lib/statements/pdf.ts";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -923,51 +924,7 @@ function validateParsedTransactions(document, base, transactions) {
 }
 
 export async function extractPdfDocument(filePath) {
-  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const bytes = new Uint8Array(await fs.readFile(filePath));
-  const pdf = await getDocument({ data: bytes, useSystemFonts: true }).promise;
-  const pages = [];
-
-  try {
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-      const page = await pdf.getPage(pageNumber);
-      const content = await page.getTextContent();
-      const items = content.items
-        .filter((item) => "str" in item && "transform" in item && item.str.trim())
-        .map((item) => ({
-          text: item.str,
-          x: item.transform[4],
-          y: item.transform[5],
-          width: item.width ?? 0,
-        }));
-      const grouped = [];
-      for (const item of items) {
-        let row = grouped.find((candidate) => Math.abs(candidate.y - item.y) <= 2);
-        if (!row) {
-          row = { y: item.y, items: [] };
-          grouped.push(row);
-        }
-        row.items.push(item);
-      }
-      const lines = grouped
-        .sort((a, b) => b.y - a.y)
-        .map((row) => {
-          const sorted = row.items.sort((a, b) => a.x - b.x);
-          return {
-            text: cleanText(sorted.map((item) => item.text).join(" ")),
-            y: row.y,
-            xMin: Math.min(...sorted.map((item) => item.x)),
-            xMax: Math.max(...sorted.map((item) => item.x + item.width)),
-            items: sorted,
-          };
-        })
-        .filter((line) => line.text);
-      pages.push({ pageNumber, lines, text: lines.map((line) => line.text).join("\n") });
-    }
-  } finally {
-    await pdf.destroy();
-  }
-  return { pageCount: pages.length, pages, text: pages.map((page) => page.text).join("\n") };
+  return extractPdfBytes(new Uint8Array(await fs.readFile(filePath)));
 }
 
 export async function parseStatementFile(filePath, statementsRoot) {

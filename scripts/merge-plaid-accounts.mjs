@@ -1,3 +1,5 @@
+import { requireExistingDataOperation, assertOperationTarget } from "./lib/operator-safety.mjs";
+const operationPlan = requireExistingDataOperation("merge-accounts",{write:process.argv.includes("--commit")});
 import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
@@ -206,6 +208,7 @@ async function fetchAll(makeQuery) {
 async function resolveUserId(supabase, explicitUserId) {
   if (explicitUserId) return explicitUserId;
 
+  assertOperationTarget(operationPlan, env.NEXT_PUBLIC_SUPABASE_URL, userId);
   const accounts = await fetchAll(() =>
     supabase.from("accounts").select("user_id").not("user_id", "is", null)
   );
@@ -624,6 +627,7 @@ function printSummary({ mode, manualSummaries, duplicateSummaries, connectionSum
 
 async function main() {
   const env = parseEnv();
+  assertOperationTarget(operationPlan, env.NEXT_PUBLIC_SUPABASE_URL);
   const commit = isCommitMode();
   const supabase = createClient(
     requiredEnv(env, "NEXT_PUBLIC_SUPABASE_URL"),
@@ -701,7 +705,7 @@ async function main() {
   });
 }
 
-main().catch((error) => {
-  console.error(error);
+main().catch(() => {
+  console.error("Operator command failed. Inspect the protected operation report; no error payload is logged.");
   process.exit(1);
 });

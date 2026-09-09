@@ -1,3 +1,5 @@
+import { requireExistingDataOperation, assertOperationTarget } from "./lib/operator-safety.mjs";
+const operationPlan = requireExistingDataOperation("statements:seed-review",{write:true});
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
@@ -19,6 +21,7 @@ const [envText, reportText, manifestText] = await Promise.all([
 ]);
 const env = { ...parseEnv(envText), ...process.env };
 const report = JSON.parse(reportText);
+assertOperationTarget(operationPlan, env.NEXT_PUBLIC_SUPABASE_URL, report.supabaseUserId);
 const manifest = JSON.parse(manifestText);
 if (report.reportId !== manifest.reportId) throw new Error("Report and review manifest do not match.");
 
@@ -30,75 +33,6 @@ const { data: accounts, error: accountError } = await supabase
 if (accountError) throw accountError;
 const accountNames = new Map(accounts.map((account) => [account.id, account.name]));
 const decisions = new Map(manifest.insertionDecisions.map((item) => [item.sourceRecordId, item]));
-
-function chunks(rows, size = 200) {
-  const result = [];
-  for (let offset = 0; offset < rows.length; offset += size) {
-    result.push(rows.slice(offset, offset + size));
-  }
-  return result;
-}
-
-async function fetchAutomaticRows(externalIds) {
-  const rows = [];
-  for (const ids of chunks(externalIds)) {
-    if (ids.length === 0) continue;
-    const { data, error } = await supabase
-      .from("transactions")
-      .select("id,date,description,amount,account_id,user_id,external_transaction_id")
-      .eq("user_id", report.supabaseUserId)
-      .eq("connection_provider", "statement")
-      .in("external_transaction_id", ids);
-    if (error) throw error;
-    rows.push(...(data ?? []));
-  }
-  return rows;
-}
-
-function assertAutomaticRows(expected, actual) {
-  const actualById = new Map(actual.map((row) => [row.external_transaction_id, row]));
-  for (const row of expected) {
-    const stored = actualById.get(row.externalTransactionId);
-    if (!stored) throw new Error(`Automatic statement import ${row.externalTransactionId} is missing.`);
-    for (const [field, expectedValue, actualValue] of [
-      ["date", row.insertRecord.date, stored.date],
-      ["description", row.insertRecord.description, stored.description],
-      ["amount", Number(row.insertRecord.amount), Number(stored.amount)],
-      ["account_id", row.insertRecord.account_id, stored.account_id],
-      ["user_id", row.insertRecord.user_id, stored.user_id],
-    ]) {
-      if (expectedValue !== actualValue) {
-        throw new Error(
-          `Automatic statement import ${row.externalTransactionId} conflicts on ${field}.`
-        );
-      }
-    }
-  }
-}
-
-const automaticInsertions = report.automaticInsertions ??
-  report.proposedInsertions.filter((row) => row.reconciliationRequired === false);
-const automaticIds = automaticInsertions.map((row) => row.externalTransactionId);
-const automaticBefore = await fetchAutomaticRows(automaticIds);
-const existingAutomaticIds = new Set(
-  automaticBefore.map((row) => row.external_transaction_id)
-);
-assertAutomaticRows(
-  automaticInsertions.filter((row) => existingAutomaticIds.has(row.externalTransactionId)),
-  automaticBefore
-);
-const newAutomaticRows = automaticInsertions
-  .filter((row) => !existingAutomaticIds.has(row.externalTransactionId))
-  .map((row) => ({
-    ...row.insertRecord,
-    upload_source: `statement:auto:${report.reportId}:${row.statementFile}`,
-  }));
-for (const batch of chunks(newAutomaticRows)) {
-  const { error } = await supabase.from("transactions").insert(batch);
-  if (error) throw error;
-}
-const automaticAfter = await fetchAutomaticRows(automaticIds);
-assertAutomaticRows(automaticInsertions, automaticAfter);
 
 function toReview(item, reviewType) {
   const candidateIds = item.candidateSupabaseTransactionIds ??
@@ -145,7 +79,6 @@ function toReview(item, reviewType) {
 
 const rows = [
   ...report.proposedInsertions
-    .filter((item) => item.reconciliationRequired !== false)
     .map((item) => toReview(item, "proposed_import")),
   ...report.possibleMatches.map((item) => toReview(item, "possible_match")),
   ...report.conflicts.map((item) => toReview(item, "conflict")),
@@ -160,34 +93,11 @@ for (let offset = 0; offset < rows.length; offset += 200) {
   if (error) throw error;
 }
 
-const { error: supersedeError } = await supabase
-  .from("statement_reconciliation_reviews")
-  .update({
-    status: "ignored",
-    decision_note: `Superseded by reconciliation report ${report.reportId}.`,
-    updated_at: new Date().toISOString(),
-  })
-  .eq("user_id", report.supabaseUserId)
-  .eq("status", "pending")
-  .neq("report_id", report.reportId);
-if (supersedeError) throw supersedeError;
+// Existing reports and decisions are never superseded automatically.
 
 const { count, error: countError } = await supabase
   .from("statement_reconciliation_reviews")
   .select("id", { count: "exact", head: true })
   .eq("user_id", report.supabaseUserId).eq("report_id", report.reportId).eq("status", "pending");
 if (countError) throw countError;
-const { count: januaryPending, error: januaryError } = await supabase
-  .from("statement_reconciliation_reviews")
-  .select("id", { count: "exact", head: true })
-  .eq("user_id", report.supabaseUserId)
-  .eq("status", "pending")
-  .gte("transaction_date", "2023-01-01")
-  .lte("transaction_date", "2023-01-31");
-if (januaryError) throw januaryError;
-console.log(
-  `Automatically imported ${newAutomaticRows.length} non-overlapping transactions; ` +
-  `verified ${automaticAfter.length}; seeded ${rows.length} review records; ` +
-  `${count} are pending for report ${report.reportId}; ` +
-  `${januaryPending} January 2023 reviews remain.`
-);
+console.log(JSON.stringify({ proposed: rows.length, pending: count, ledgerWrites: 0 }));

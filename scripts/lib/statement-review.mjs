@@ -329,98 +329,16 @@ function compareAppliedRows(expectedRows, actualRows) {
   return errors;
 }
 
-export async function applyApprovedBatch({
-  supabase,
-  report,
-  manifest,
-  approval,
-  filters = {},
-}) {
+export async function applyApprovedBatch({ supabase, report, manifest, approval, filters = {} }) {
   const validation = validateReviewManifest(report, manifest, filters);
-  if (approval !== validation.expectedToken) {
-    throw new Error(`Approval token mismatch. Expected ${validation.expectedToken}.`);
-  }
-  if (validation.approved.length === 0) throw new Error("No approved rows match this batch.");
-  if (validation.approved.length > MAX_BATCH_SIZE) {
-    throw new Error(
-      `Batch contains ${validation.approved.length} approved rows; narrow it to ${MAX_BATCH_SIZE} or fewer with --account, --year, or --month.`
-    );
-  }
-  const filterIdentity = JSON.stringify({
-    account: filters.account ?? null,
-    year: filters.year ?? null,
-    month: filters.month ?? null,
-  });
-  const batchId = `stmtbatch_${stableHash(`${report.reportId}|${validation.expectedToken}|${filterIdentity}`).slice(0, 24)}`;
-  const externalIds = validation.approved.map((row) => row.externalTransactionId);
-  const beforeRows = await fetchByExternalIds(supabase, externalIds);
-  const beforeIds = new Set(beforeRows.map((row) => row.external_transaction_id));
-  const alreadyPresentExpected = validation.approved.filter((row) =>
-    beforeIds.has(row.externalTransactionId)
-  );
-  const beforeComparisonErrors = compareAppliedRows(alreadyPresentExpected, beforeRows);
-  if (beforeComparisonErrors.length > 0) {
-    throw new Error(
-      `Existing idempotency records conflict with the approved batch: ${JSON.stringify(beforeComparisonErrors.slice(0, 10))}`
-    );
-  }
-  const rows = validation.approved
-    .filter((row) => !beforeIds.has(row.externalTransactionId))
-    .map((row) => ({
-    ...row.insertRecord,
-    upload_source: `statement:${batchId}:${row.statementFile}`,
-  }));
-  if (rows.length > 0) {
-    // The database has a partial unique index on provider/external ID/user. PostgREST
-    // cannot target that partial index with onConflict, so prefilter known IDs and use
-    // a plain insert. The unique index still rejects any concurrent duplicate and keeps
-    // the entire batch atomic.
-    // This project does not enable PostgREST's transaction-end preference, so
-    // `.rollback()` would commit instead of acting as a dry run. The actual insert
-    // is atomic, and the database unique index rejects the whole request if a
-    // concurrent process inserts any of the same external IDs.
-    const { error } = await supabase.from("transactions").insert(rows);
-    if (error) throw error;
-  }
-  const afterRows = await fetchByExternalIds(supabase, externalIds);
-  const comparisonErrors = compareAppliedRows(validation.approved, afterRows);
-  if (comparisonErrors.length > 0) {
-    throw new Error(`Post-apply verification failed: ${JSON.stringify(comparisonErrors.slice(0, 10))}`);
-  }
-  const ownedBeforeRows = beforeRows.filter((row) =>
-    row.upload_source?.startsWith(`statement:${batchId}:`)
-  );
-  const newlyInsertedRows = afterRows.filter(
-    (row) => !beforeIds.has(row.external_transaction_id)
-  );
-  const receiptRows = [...new Map(
-    [...ownedBeforeRows, ...newlyInsertedRows].map((row) => [row.id, row])
-  ).values()];
-  return {
-    schemaVersion: 1,
-    batchId,
-    reportId: report.reportId,
-    manifestApprovalToken: validation.expectedToken,
-    filters,
-    attempted: validation.approved.length,
-    alreadyPresent: beforeRows.length - ownedBeforeRows.length,
-    inserted: receiptRows.length,
-    expectedAmount: validation.totals.approvedAmount,
-    insertedTransactionIds: receiptRows.map((row) => row.id),
-    externalTransactionIds: externalIds,
-    expectedRows: validation.approved.map((row) => ({
-      externalTransactionId: row.externalTransactionId,
-      insertRecord: {
-        date: row.insertRecord.date,
-        description: row.insertRecord.description,
-        amount: row.insertRecord.amount,
-        account_id: row.insertRecord.account_id,
-        user_id: row.insertRecord.user_id,
-      },
-    })),
-    excluded: validation.excluded,
-    verification: { status: "passed", checked: afterRows.length, errors: [] },
-  };
+  if (approval !== validation.expectedToken) throw new Error("Approval token mismatch.");
+  if (!validation.approved.length || validation.approved.length > MAX_BATCH_SIZE) throw new Error("Choose 1–250 explicitly reviewed rows.");
+  const filterIdentity = JSON.stringify({ account: filters.account ?? null, year: filters.year ?? null, month: filters.month ?? null });
+  const batchId = "stmtbatch_" + stableHash(report.reportId + "|" + approval + "|" + filterIdentity).slice(0,24);
+  const items=validation.approved.map(row=>({...row.insertRecord,connection_provider:"statement",external_transaction_id:row.externalTransactionId}));
+  const {data,error}=await supabase.rpc("stackmint_import_statement_batch",{p_user_id:report.supabaseUserId,p_batch_id:batchId,p_report_id:report.reportId,p_items:items});
+  if(error) throw new Error("Batch result unavailable. Retry the same approved batch to recover its durable receipt; do not assume rollback.");
+  return {...data,externalTransactionIds:items.map(row=>row.external_transaction_id),expectedRows:validation.approved.map(row=>({externalTransactionId:row.externalTransactionId,insertRecord:row.insertRecord}))};
 }
 
 export async function verifyBatchReceipt({ supabase, report, receipt }) {
@@ -450,29 +368,9 @@ export async function verifyBatchReceipt({ supabase, report, receipt }) {
 }
 
 export async function rollbackBatchReceipt({ supabase, receipt, approval }) {
-  const expectedApproval = `rollback:${receipt.batchId}`;
-  if (approval !== expectedApproval) {
-    throw new Error(`Rollback approval mismatch. Expected ${expectedApproval}.`);
-  }
-  const ids = receipt.insertedTransactionIds ?? [];
-  if (ids.length === 0) return { batchId: receipt.batchId, deleted: 0 };
-  const select = await supabase
-    .from("transactions")
-    .select("id,connection_provider,upload_source")
-    .in("id", ids);
-  if (select.error) throw select.error;
-  const unsafe = (select.data ?? []).filter(
-    (row) =>
-      row.connection_provider !== "statement" ||
-      !row.upload_source?.startsWith(`statement:${receipt.batchId}:`)
-  );
-  if (unsafe.length > 0 || (select.data ?? []).length !== ids.length) {
-    throw new Error("Rollback refused because one or more receipt rows no longer match the imported batch.");
-  }
-  // The exact IDs and immutable batch marker were validated above. Do not use
-  // PostgREST `.rollback()` here because this project does not enable the server
-  // transaction-end preference and would commit the validation request.
-  const deleted = await supabase.from("transactions").delete().in("id", ids).select("id");
-  if (deleted.error) throw deleted.error;
-  return { batchId: receipt.batchId, deleted: deleted.data?.length ?? 0 };
+  if(approval!=="archive:"+receipt.batchId)throw new Error("Archive approval token required. This operation preserves records and can be reversed.");
+  if(receipt.schemaVersion!==2 || !receipt.userId)throw new Error("Legacy receipts require individual review; they cannot prove later edits are absent.");
+  const {data,error}=await supabase.rpc("stackmint_archive_statement_batch",{p_user_id:receipt.userId,p_batch_id:receipt.batchId});
+  if(error)throw new Error("Could not archive the batch. Changed records must be reviewed individually; no records were deleted.");
+  return {batchId:receipt.batchId,archived:data,deleted:0};
 }
