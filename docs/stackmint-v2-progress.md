@@ -13,6 +13,14 @@ Product direction and section D calculation rules approved by the user on Septem
 
 ## Commands
 
+### Framework/build checkpoint
+
+- Updated Next and its ESLint configuration together from 16.2.3 to the evaluated 16.3.3 security release. Other runtime libraries remain on the baseline lockfile versions.
+- Bundled the existing Geist fonts locally and set the worktree's Turbopack root explicitly. No font or financial-service requests are needed during the isolated build.
+- Verification: node scripts/isolated.mjs build passed, including compilation, TypeScript, and 29 generated pages. Isolated lint passed. No existing data/schema/configuration was changed.
+
+Reference: https://nextjs.org/blog/august-2026-security-release
+
 Use Node 24.19.0 and npm 11.6.2. This host has a local npm bootstrap under ignored .tools/npm; standard installations can use npm normally.
 
 ~~~text
