@@ -163,6 +163,7 @@ export function getPlaidClient() {
   const configuration = new Configuration({
     basePath: PlaidEnvironments[environment],
     baseOptions: {
+      timeout: 20000,
       headers: {
         "PLAID-CLIENT-ID": getPlaidClientId(),
         "PLAID-SECRET": getPlaidSecret(),

@@ -1,7 +1,6 @@
 import { supabase } from "@/lib/supabase/client";
 import { getCurrentUserId } from "@/lib/supabase/auth";
 import {
-  SUPPORTED_ACCOUNT_TYPES,
   isSupportedAccountType,
   type SupportedAccountType,
 } from "@/lib/accounts/account-types";
@@ -10,7 +9,7 @@ export interface Account {
   id: string;
   name: string;
   institution: string;
-  type: SupportedAccountType | null;
+  type: string | null;
   current_balance: number | null;
   last_synced_at: string | null;
   plaid_account_id: string | null;
@@ -38,14 +37,11 @@ export async function getAccounts(): Promise<Account[]> {
       "id, name, institution, type, current_balance, last_synced_at, plaid_account_id, connection_provider, external_account_id, hidden"
     )
     .eq("user_id", userId)
-    .in("type", [...SUPPORTED_ACCOUNT_TYPES])
     .order("institution")
     .order("name");
 
   if (error) throw error;
-  return (data ?? []).filter((account): account is Account =>
-    isSupportedAccountType(account.type)
-  );
+  return data ?? [];
 }
 
 export async function getBankConnections(): Promise<BankConnectionStatus[]> {
@@ -109,6 +105,7 @@ export async function updateAccountBalance(
     .from("accounts")
     .update({
       current_balance: currentBalance,
+      bank_balance_managed: false,
       last_synced_at: new Date().toISOString(),
     })
     .eq("id", accountId)

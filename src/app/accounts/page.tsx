@@ -2,6 +2,11 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAccounts } from "@/lib/queries/accounts";
+import { useState } from "react";
+import Link from "next/link";
+import { ProviderReviews } from "@/components/accounts/provider-reviews";
+import { invalidateFinance, saveError } from "@/lib/finance/cache";
+import { money } from "@/lib/finance/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,10 +25,10 @@ import { PlaidConnectButton } from "@/components/accounts/plaid-connect-button";
 import { PlaidConnectionCleanup } from "@/components/accounts/plaid-connection-cleanup";
 import {
   SUPPORTED_ACCOUNT_TYPES,
-  type SupportedAccountType,
+  isSupportedAccountType,
 } from "@/lib/accounts/account-types";
 
-const typeIcons: Record<SupportedAccountType, LucideIcon> = {
+const typeIcons: Record<string, LucideIcon> = {
   Checking: Wallet,
   Savings: PiggyBank,
   "Credit Card": CreditCard,
@@ -31,8 +36,9 @@ const typeIcons: Record<SupportedAccountType, LucideIcon> = {
 
 export default function AccountsPage() {
   const queryClient = useQueryClient();
+  const [history, setHistory] = useState(false);
 
-  const { data: accounts = [], isLoading } = useQuery({
+  const { data: accounts = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ["accounts"],
     queryFn: getAccounts,
   });
@@ -56,17 +62,14 @@ export default function AccountsPage() {
       return json;
     },
     onSuccess: (summary) => {
-      queryClient.invalidateQueries({ queryKey: ["bank-connections"] });
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["budget"] });
+      void invalidateFinance(queryClient);
 
       if (summary.failures && summary.failures.length > 0) {
         const failedBanks = summary.failures
           .map((failure) => failure.institutionName)
           .join(", ");
         toast.warning(
-          `Synced available banks. Reconnect ${failedBanks} to resume syncing.`
+          `Some banks need attention: ${failedBanks}. Retry sync or reconnect when requested.`
         );
         return;
       }
@@ -83,17 +86,18 @@ export default function AccountsPage() {
     },
   });
 
-  const visibleAccounts = accounts.filter((a) => !a.hidden);
+  const visibleAccounts = accounts.filter((account) => history || (!account.hidden && isSupportedAccountType(account.type)));
 
-  const grouped = SUPPORTED_ACCOUNT_TYPES.map((type) => ({
+  const grouped = [...new Set<string>([...SUPPORTED_ACCOUNT_TYPES, ...visibleAccounts.map(account => account.type ?? "Other")])].map((type) => ({
     type,
-    accounts: visibleAccounts.filter((account) => account.type === type),
+    accounts: visibleAccounts.filter((account) => (account.type ?? "Other") === type),
   })).filter((group) => group.accounts.length > 0);
 
   const hasPlaidConnections = accounts.some(
     (account) => account.connection_provider === "plaid"
   );
 
+  if (isError) return <div role="alert" className="rounded border p-6">{saveError(error)} <Button variant="outline" onClick={() => refetch()}>Retry</Button></div>;
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -104,7 +108,7 @@ export default function AccountsPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl font-bold">Accounts</h2>
         <div className="flex items-center gap-2">
           <PlaidConnectButton />
@@ -137,9 +141,12 @@ export default function AccountsPage() {
       </div>
 
       <PlaidConnectionCleanup />
+      <ProviderReviews />
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={history} onChange={event => setHistory(event.target.checked)} />Show hidden and other historical accounts</label>
+      <p className="text-xs text-muted-foreground">Hiding an account does not exclude its transactions from Budget. Bank disconnection retains the ledger.</p>
 
       {grouped.map(({ type, accounts: accts }) => {
-        const Icon = typeIcons[type];
+        const Icon = typeIcons[type] ?? Wallet;
         return (
           <div key={type} className="space-y-3">
             <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -155,7 +162,9 @@ export default function AccountsPage() {
                   <CardContent className="pt-6">
                     <div className="flex items-start justify-between">
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium">{a.name}</p>
+                        <p className="font-medium">{a.name} {a.hidden ? <Badge variant="outline">Hidden</Badge> : null}</p>
+                        <p className="mt-1 text-lg font-semibold tabular-nums">{a.current_balance == null ? "Balance unavailable" : money(a.current_balance)}</p>
+                        <Link className="text-xs text-primary underline" href={"/transactions?accountId=" + a.id + "&history=all"}>View all activity and history</Link>
                         <p className="text-sm text-muted-foreground">
                           {a.institution}
                         </p>

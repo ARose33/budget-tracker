@@ -7,6 +7,7 @@ import { AlertCircle, Loader2, RefreshCw, Unplug } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { getBankConnections } from "@/lib/queries/accounts";
+import { invalidateFinance } from "@/lib/finance/cache";
 
 export function PlaidConnectionCleanup() {
   const queryClient = useQueryClient();
@@ -19,19 +20,13 @@ export function PlaidConnectionCleanup() {
     queryFn: getBankConnections,
   });
   const inactiveConnections = connections.filter(
-    (connection) => connection.status === "inactive"
+    (connection) => ["inactive", "disconnecting", "disconnect_failed", "disconnected"].includes(connection.status)
   );
   const errorConnections = connections.filter(
     (connection) => connection.status === "error"
   );
 
-  const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ["bank-connections"] });
-    queryClient.invalidateQueries({ queryKey: ["accounts"] });
-    queryClient.invalidateQueries({ queryKey: ["transactions"] });
-    queryClient.invalidateQueries({ queryKey: ["uncategorized-count"] });
-    queryClient.invalidateQueries({ queryKey: ["budget"] });
-  }, [queryClient]);
+  const invalidate = useCallback(() => { void invalidateFinance(queryClient); }, [queryClient]);
 
   const finishRepair = useCallback(async () => {
     if (!repairingConnectionId) {
@@ -126,7 +121,7 @@ export function PlaidConnectionCleanup() {
       }
     },
     onSuccess: () => {
-      toast.success("Retired Plaid connection removed");
+      toast.success("Bank disconnected; all history retained.");
       queryClient.invalidateQueries({ queryKey: ["bank-connections"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
@@ -151,7 +146,7 @@ export function PlaidConnectionCleanup() {
                 Bank connections need attention
               </p>
               <p className="mt-1 text-xs text-red-800">
-                Reconnect each bank below to resume automatic transaction sync.
+                Retry sync for temporary failures. Reconnect when the bank requires a new sign-in.
               </p>
             </div>
           </div>
@@ -209,22 +204,22 @@ export function PlaidConnectionCleanup() {
                     {connection.institution_name ?? "Plaid connection"}
                   </p>
                   <p className="text-xs text-amber-800">
-                    Connection {connection.id.slice(0, 8)}
+                    {connection.status === "disconnected" ? "Accounts and transactions remain accessible." : "Stop future updates while retaining all existing activity."}
                   </p>
                 </div>
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  disabled={removeMutation.isPending}
-                  onClick={() => removeMutation.mutate(connection.id)}
+                  disabled={removeMutation.isPending || connection.status === "disconnected"}
+                  onClick={() => { if (window.confirm("Disconnect this retired bank connection? Future sync stops. Accounts, transactions and connection history remain available.")) removeMutation.mutate(connection.id); }}
                 >
                   {removeMutation.isPending ? (
                     <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                   ) : (
                     <Unplug className="mr-1 h-4 w-4" />
                   )}
-                  Remove from Plaid
+                  {connection.status === "disconnected" ? "Disconnected · history retained" : "Disconnect from Plaid"}
                 </Button>
               </div>
             ))}
