@@ -76,6 +76,8 @@ begin
   if candidate.archived_at is not null or coalesce(candidate.external_status,'')='removed' or candidate.parent_id is not null then raise exception 'Restore or review inactive candidate first'; end if;
   transaction_id:=candidate.id;
  elsif p_decision='imported' then
+  if review.amount is null or review.amount::text in ('NaN','Infinity','-Infinity') or abs(review.amount)>=10000000000000 or review.amount<>round(review.amount,2)
+  then raise exception 'Statement amount must be finite and exact to cents'; end if;
   if not exists(select 1 from public.accounts where id=review.account_id and user_id=owner_id) then raise exception 'Mapped account unavailable'; end if;
   external_id:=nullif(trim(review.proposed_transaction->>'external_transaction_id'),'');
   if external_id is null then raise exception 'Proposal lacks an import identity; prepare a reviewed replacement'; end if;

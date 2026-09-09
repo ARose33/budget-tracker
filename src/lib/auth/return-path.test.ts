@@ -1,12 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { safeReturnPath } from "./return-path.ts";
+import { safeReturnPath, authRedirect } from "./return-path.ts";
 test("auth returns preserve legitimate month/category context", () => {
   assert.equal(
     safeReturnPath("/budget?year=2026&month=9&category=synthetic"),
     "/budget?year=2026&month=9&category=synthetic",
   );
   assert.equal(safeReturnPath("/reset-password"), "/reset-password");
+  const response = authRedirect("/login");
+  assert.equal(response.status, 303);
+  assert.equal(response.headers.get("location"), "/login");
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
+  assert.equal(
+    authRedirect("https://example.invalid").headers.get("location"),
+    "/budget",
+  );
 });
 test("auth rejects external, encoded, malformed, and control-character destinations", () => {
   for (const input of [

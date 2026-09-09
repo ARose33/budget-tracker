@@ -1,4 +1,14 @@
 /** Accept only an ordinary same-origin path, including after URL decoding. */
+export function authRedirect(path: string) {
+  return new Response(null, {
+    status: 303,
+    headers: {
+      Location: safeReturnPath(path),
+      "Cache-Control": "private, no-store",
+    },
+  });
+}
+
 export function safeReturnPath(
   value: string | null | undefined,
   fallback = "/budget",

@@ -100,7 +100,11 @@ export default function SpendingPage() {
             onValueChange={(v) => v && setGranularity(v as SpendingGranularity)}
           >
             <SelectTrigger className="w-[180px]">
-              <SelectValue />
+              <SelectValue>
+                {granularity === "group"
+                  ? "Large groups"
+                  : "Specific categories"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="group">Large groups</SelectItem>
@@ -109,7 +113,7 @@ export default function SpendingPage() {
           </Select>
           <Select value={months} onValueChange={(v) => v && setMonths(v)}>
             <SelectTrigger className="w-[150px]">
-              <SelectValue />
+              <SelectValue>Last {months} months</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="6">Last 6 months</SelectItem>

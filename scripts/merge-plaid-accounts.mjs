@@ -217,7 +217,6 @@ async function fetchAll(makeQuery) {
 async function resolveUserId(supabase, explicitUserId) {
   if (explicitUserId) return explicitUserId;
 
-  assertOperationTarget(operationPlan, env.NEXT_PUBLIC_SUPABASE_URL, userId);
   const accounts = await fetchAll(() =>
     supabase.from("accounts").select("user_id").not("user_id", "is", null),
   );
@@ -678,6 +677,7 @@ async function main() {
       env.ACCOUNT_MERGE_USER_ID ||
       env.CHASE_IMPORT_USER_ID,
   );
+  assertOperationTarget(operationPlan, env.NEXT_PUBLIC_SUPABASE_URL, userId);
 
   const accounts = await fetchAll(() =>
     supabase

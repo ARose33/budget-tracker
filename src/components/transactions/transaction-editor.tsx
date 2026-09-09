@@ -26,8 +26,9 @@ export function TransactionEditor({
   const query = useQuery({
     queryKey: ["transaction", id],
     queryFn: () => getTransaction(id),
+    refetchOnMount: "always",
   });
-  if (query.isPending)
+  if (query.isPending || (!query.isFetchedAfterMount && !query.isError))
     return (
       <p role="status" className="p-4">
         Loading transaction…

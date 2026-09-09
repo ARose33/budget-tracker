@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -14,7 +14,6 @@ import {
   bulkUpdateDescription,
   bulkUpdateDate,
   archiveTransactions,
-  observedVersion,
   markNotDuplicate,
   type TransactionFilters,
   type TransactionSort,
@@ -69,6 +68,7 @@ function TransactionsContent() {
     direction: "desc",
   });
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const selectionVersions = useRef(new Map<string, number>());
   const pageSize = 50;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmArchive, setConfirmArchive] = useState(false);
@@ -108,22 +108,34 @@ function TransactionsContent() {
       setSelected(new Set());
     } else {
       setSelected(new Set(transactions.map((t) => t.id)));
+      selectionVersions.current = new Map(
+        transactions.map((t) => [t.id, t.row_version]),
+      );
     }
   };
 
   const toggleOne = (id: string) => {
     const next = new Set(selected);
     if (next.has(id)) next.delete(id);
-    else next.add(id);
+    else {
+      next.add(id);
+      const row = transactions.find((t) => t.id === id);
+      if (row) selectionVersions.current.set(id, row.row_version);
+    }
     setSelected(next);
   };
 
-  const versions = (ids: string[]) =>
+  const versions = (ids: string[], fromSelection = false) =>
     ids.map((id) => {
       const transaction = transactions.find((row) => row.id === id);
       if (!transaction)
         throw new Error("Selection changed. Select these transactions again.");
-      return observedVersion(transaction);
+      const version = fromSelection
+        ? selectionVersions.current.get(id)
+        : transaction.row_version;
+      if (version === undefined)
+        throw new Error("Selection changed. Select these transactions again.");
+      return { id, version };
     });
   const invalidate = () => {
     void invalidateFinance(queryClient);
@@ -146,7 +158,7 @@ function TransactionsContent() {
   const bulkCategoryMutation = useMutation({
     onError: onSaveError,
     mutationFn: (categoryId: string | null) =>
-      bulkUpdateCategory(versions(Array.from(selected)), categoryId),
+      bulkUpdateCategory(versions(Array.from(selected), true), categoryId),
     onSuccess: () => {
       toast.success(`Updated ${selected.size} transactions`);
       invalidate();
@@ -155,7 +167,7 @@ function TransactionsContent() {
 
   const deleteMutation = useMutation({
     onError: onSaveError,
-    mutationFn: () => archiveTransactions(versions(Array.from(selected))),
+    mutationFn: () => archiveTransactions(versions(Array.from(selected), true)),
     onSuccess: () => {
       toast.success(`Archived ${selected.size} transactions; history retained`);
       invalidate();
@@ -164,7 +176,8 @@ function TransactionsContent() {
 
   const notDuplicateMutation = useMutation({
     onError: onSaveError,
-    mutationFn: () => markNotDuplicate(versions(Array.from(selected)), true),
+    mutationFn: () =>
+      markNotDuplicate(versions(Array.from(selected), true), true),
     onSuccess: () => {
       toast.success(
         `Marked ${selected.size} transactions as verified (not duplicate)`,
@@ -176,7 +189,7 @@ function TransactionsContent() {
   const bulkAccountMutation = useMutation({
     onError: onSaveError,
     mutationFn: (accountId: string) =>
-      bulkUpdateAccount(versions(Array.from(selected)), accountId),
+      bulkUpdateAccount(versions(Array.from(selected), true), accountId),
     onSuccess: () => {
       toast.success(`Updated account on ${selected.size} transactions`);
       invalidate();
@@ -195,7 +208,8 @@ function TransactionsContent() {
 
   const bulkFinalizeMutation = useMutation({
     onError: onSaveError,
-    mutationFn: () => finalizeTransactions(versions(Array.from(selected))),
+    mutationFn: () =>
+      finalizeTransactions(versions(Array.from(selected), true)),
     onSuccess: () => {
       toast.success(`Marked ${selected.size} transactions Final`);
       invalidate();
@@ -205,7 +219,7 @@ function TransactionsContent() {
   const bulkDescriptionMutation = useMutation({
     onError: onSaveError,
     mutationFn: (description: string) =>
-      bulkUpdateDescription(versions(Array.from(selected)), description),
+      bulkUpdateDescription(versions(Array.from(selected), true), description),
     onSuccess: () => {
       toast.success(`Updated description on ${selected.size} transactions`);
       invalidate();
@@ -215,7 +229,7 @@ function TransactionsContent() {
   const bulkDateMutation = useMutation({
     onError: onSaveError,
     mutationFn: (date: string) =>
-      bulkUpdateDate(versions(Array.from(selected)), date),
+      bulkUpdateDate(versions(Array.from(selected), true), date),
     onSuccess: () => {
       toast.success(`Updated date on ${selected.size} transactions`);
       invalidate();
@@ -254,6 +268,9 @@ function TransactionsContent() {
         description="These records leave active totals and remain accessible in transaction history. You can restore them later."
         confirmLabel="Confirm archive"
         pending={deleteMutation.isPending}
+        error={
+          deleteMutation.isError ? saveError(deleteMutation.error) : undefined
+        }
         onConfirm={() =>
           deleteMutation.mutate(undefined, {
             onSuccess: () => setConfirmArchive(false),
@@ -262,13 +279,16 @@ function TransactionsContent() {
       />
       <BulkActionsBar
         selectedCount={selected.size}
-        onSetCategory={(cid) => bulkCategoryMutation.mutate(cid)}
-        onSetAccount={(aid) => bulkAccountMutation.mutate(aid)}
-        onFinalize={() => bulkFinalizeMutation.mutate()}
-        onSetDescription={(d) => bulkDescriptionMutation.mutate(d)}
-        onSetDate={(d) => bulkDateMutation.mutate(d)}
-        onArchive={() => setConfirmArchive(true)}
-        onMarkNotDuplicate={() => notDuplicateMutation.mutate()}
+        onSetCategory={(cid) => bulkCategoryMutation.mutateAsync(cid)}
+        onSetAccount={(aid) => bulkAccountMutation.mutateAsync(aid)}
+        onFinalize={() => bulkFinalizeMutation.mutateAsync()}
+        onSetDescription={(d) => bulkDescriptionMutation.mutateAsync(d)}
+        onSetDate={(d) => bulkDateMutation.mutateAsync(d)}
+        onArchive={() => {
+          deleteMutation.reset();
+          setConfirmArchive(true);
+        }}
+        onMarkNotDuplicate={() => notDuplicateMutation.mutateAsync()}
       />
 
       {editingId ? (

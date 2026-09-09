@@ -26,8 +26,10 @@ function LoadedNote({ id }: { id: string }) {
     queryKey: ["transaction-note", id],
     queryFn: () => getTransactionNote(id),
     staleTime: 0,
+    refetchOnMount: "always",
   });
-  if (query.isPending) return <p role="status">Loading note…</p>;
+  if (query.isPending || (!query.isFetchedAfterMount && !query.isError))
+    return <p role="status">Loading note…</p>;
   if (query.isError)
     return (
       <p role="alert">
@@ -83,7 +85,7 @@ function NoteFields({ id, latest }: { id: string; latest: NoteState }) {
           {saveError(mutation.error)}
         </p>
       ) : null}
-      {mutation.isSuccess ? (
+      {mutation.isSuccess && draft === original.content ? (
         <p role="status" className="text-sm">
           Note saved.
         </p>

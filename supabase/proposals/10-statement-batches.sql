@@ -21,6 +21,9 @@ begin
   return receipt.result;
  end if;
  for item in select value from jsonb_array_elements(p_items) loop
+  if item->>'amount' is null or (item->>'amount')::numeric::text in ('NaN','Infinity','-Infinity')
+  or abs((item->>'amount')::numeric)>=10000000000000 or (item->>'amount')::numeric<>round((item->>'amount')::numeric,2)
+  then raise exception 'Statement amount must be finite and exact to cents'; end if;
   if item->>'user_id' is distinct from p_user_id::text or coalesce(item->>'connection_provider','statement')<>'statement'
   or length(coalesce(item->>'external_transaction_id','')) not between 1 and 500
   or not exists(select 1 from public.accounts where id=(item->>'account_id')::uuid and user_id=p_user_id)

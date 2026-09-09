@@ -460,7 +460,11 @@ async function applyReport() {
     await fs.readFile(path.resolve(manifestPath), "utf8"),
   );
   const env = await loadEnvironment(repoRoot);
-  assertOperationTarget(operationPlan, env.NEXT_PUBLIC_SUPABASE_URL);
+  assertOperationTarget(
+    operationPlan,
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    report.supabaseUserId,
+  );
   const supabase = createSupabase(env);
   const filters = {
     account: argument("account"),

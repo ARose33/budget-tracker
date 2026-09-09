@@ -82,6 +82,26 @@ test("statement batch receipts are atomic and retry-safe; archives refuse later 
       (await db.query("select count(*)::int n from transactions")).rows[0].n,
       0,
     );
+    for (const amount of [
+      "NaN",
+      "Infinity",
+      "-Infinity",
+      "12.345",
+      null,
+      "10000000000000",
+    ]) {
+      await assert.rejects(
+        apply("invalid-amount", [
+          row,
+          { ...row, external_transaction_id: "invalid-cent", amount },
+        ]),
+        /finite and exact/,
+      );
+      assert.equal(
+        (await db.query("select count(*)::int n from transactions")).rows[0].n,
+        0,
+      );
+    }
     const receipt = await apply("batch", [row]);
     assert.deepEqual(await apply("batch", [row]), receipt);
     const id = receipt.insertedTransactionIds[0];

@@ -15,6 +15,7 @@ export function ConfirmAction({
   description,
   confirmLabel = "Confirm",
   pending = false,
+  error,
   onConfirm,
 }: {
   open: boolean;
@@ -23,6 +24,7 @@ export function ConfirmAction({
   description: string;
   confirmLabel?: string;
   pending?: boolean;
+  error?: string;
   onConfirm: () => void;
 }) {
   return (
@@ -37,6 +39,11 @@ export function ConfirmAction({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
+        {error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
         <DialogFooter>
           <Button
             variant="outline"

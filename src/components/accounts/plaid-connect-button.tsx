@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { usePlaidLink, type PlaidLinkOnSuccess } from "react-plaid-link";
+import type { PlaidLinkOnSuccess } from "react-plaid-link";
+import { PlaidLinkLauncher } from "./plaid-link-launcher";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Landmark, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -21,29 +22,23 @@ type Summary = {
   duplicatesLinked?: number;
 };
 
-async function readJsonResponse<T extends object>(response: Response): Promise<T> {
+async function readJsonResponse<T extends object>(
+  response: Response,
+): Promise<T> {
   const json = (await response.json().catch(() => ({}))) as
-    | T
-    | { error?: string };
+    T | { error?: string };
   if (!response.ok) {
     throw new Error(
-      "error" in json && json.error ? json.error : "Request failed"
+      "error" in json && json.error ? json.error : "Request failed",
     );
   }
   return json as T;
 }
 
 function getPlaidHealthMessage(health: PlaidHealth) {
-  if (!health.hasClientId) {
-    return "Set PLAID_CLIENT_ID to enable Plaid Link.";
-  }
-  if (!health.hasSecret) {
-    return "Set PLAID_SECRET to enable Plaid API calls.";
-  }
-  if (!health.hasServiceRoleKey) {
-    return "Set SUPABASE_SERVICE_ROLE_KEY so Plaid can save bank data.";
-  }
-  return null;
+  return health.ready
+    ? null
+    : "Bank connections are not configured. Contact your administrator to enable them.";
 }
 
 function syncToast(summary: Summary) {
@@ -51,7 +46,7 @@ function syncToast(summary: Summary) {
   const duplicateText =
     linked > 0 ? ` and linked ${linked} existing duplicates` : "";
   toast.success(
-    `Plaid synced ${summary.accounts ?? 0} accounts and ${summary.transactions ?? 0} transactions${duplicateText}`
+    `Plaid synced ${summary.accounts ?? 0} accounts and ${summary.transactions ?? 0} transactions${duplicateText}`,
   );
 }
 
@@ -115,26 +110,14 @@ export function PlaidConnectButton() {
       } catch (error) {
         invalidate();
         toast.error(
-          error instanceof Error ? error.message : "Failed to save Plaid item"
+          error instanceof Error ? error.message : "Failed to save Plaid item",
         );
       } finally {
         setIsConnecting(false);
       }
     },
-    [invalidate]
+    [invalidate],
   );
-
-  const { open, ready } = usePlaidLink({
-    token: linkToken,
-    onSuccess,
-    onExit: () => setIsConnecting(false),
-  });
-
-  useEffect(() => {
-    if (linkToken && ready) {
-      open();
-    }
-  }, [linkToken, open, ready]);
 
   const handleConnect = async () => {
     setIsConnecting(true);
@@ -152,13 +135,13 @@ export function PlaidConnectButton() {
         method: "POST",
       });
       const token = await readJsonResponse<{ link_token: string }>(
-        tokenResponse
+        tokenResponse,
       );
       setLinkToken(token.link_token);
     } catch (error) {
       setIsConnecting(false);
       toast.error(
-        error instanceof Error ? error.message : "Failed to start Plaid"
+        error instanceof Error ? error.message : "Failed to start Plaid",
       );
     } finally {
       setIsLoadingToken(false);
@@ -172,25 +155,38 @@ export function PlaidConnectButton() {
       ? "Loading Plaid"
       : "Connecting"
     : healthMessage
-      ? "Setup Plaid"
+      ? "Bank connection unavailable"
       : "Connect Plaid";
 
   return (
-    <Button
-      size="sm"
-      variant="outline"
-      onClick={handleConnect}
-      disabled={buttonDisabled}
-      title={healthMessage ?? undefined}
-    >
-      {isConnecting ? (
-        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-      ) : healthMessage ? (
-        <AlertCircle className="h-4 w-4 mr-1" />
-      ) : (
-        <Landmark className="h-4 w-4 mr-1" />
+    <>
+      {linkToken && (
+        <PlaidLinkLauncher
+          key={linkToken}
+          token={linkToken}
+          onSuccess={onSuccess}
+          onExit={() => {
+            setLinkToken(null);
+            setIsConnecting(false);
+          }}
+        />
       )}
-      {buttonLabel}
-    </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={handleConnect}
+        disabled={buttonDisabled}
+        title={healthMessage ?? undefined}
+      >
+        {isConnecting ? (
+          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+        ) : healthMessage ? (
+          <AlertCircle className="h-4 w-4 mr-1" />
+        ) : (
+          <Landmark className="h-4 w-4 mr-1" />
+        )}
+        {buttonLabel}
+      </Button>
+    </>
   );
 }

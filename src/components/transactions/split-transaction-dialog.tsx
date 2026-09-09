@@ -62,8 +62,12 @@ export function SplitTransactionDialog({
   const [allocations, setAllocations] = useState<DraftAllocation[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [confirmUnsplit, setConfirmUnsplit] = useState(false);
+  const [snapshot, setSnapshot] = useState(transaction);
+  const [error, setError] = useState<string | null>(null);
 
   const initialize = () => {
+    setSnapshot(transaction);
+    setError(null);
     setConfirmUnsplit(false);
     setAllocations(
       transaction.allocations.length >= 2
@@ -83,10 +87,10 @@ export function SplitTransactionDialog({
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) initialize();
-    setOpen(nextOpen);
+    if (!isSaving) setOpen(nextOpen);
   };
 
-  const totalCents = Math.round(Math.abs(transaction.amount) * 100);
+  const totalCents = Math.round(Math.abs(snapshot.amount) * 100);
   const allocatedCents = allocations.reduce((total, allocation) => {
     const parsed = Number(allocation.amount);
     return total + (Number.isFinite(parsed) ? Math.round(parsed * 100) : 0);
@@ -120,11 +124,12 @@ export function SplitTransactionDialog({
 
   const save = async () => {
     if (!canSave) return;
+    setError(null);
     setIsSaving(true);
     try {
-      const sign = transaction.amount < 0 ? -1 : 1;
+      const sign = snapshot.amount < 0 ? -1 : 1;
       await splitTransaction(
-        observedVersion(transaction),
+        observedVersion(snapshot),
         allocations.map((allocation) => ({
           id: allocation.id,
           category_id: allocation.categoryId!,
@@ -140,6 +145,7 @@ export function SplitTransactionDialog({
       setOpen(false);
       onSaved();
     } catch (error) {
+      setError(errorMessage(error));
       toast.error(errorMessage(error));
     } finally {
       setIsSaving(false);
@@ -154,11 +160,12 @@ export function SplitTransactionDialog({
 
     setIsSaving(true);
     try {
-      await unsplitTransaction(observedVersion(transaction));
+      await unsplitTransaction(observedVersion(snapshot));
       toast.success("Transaction split removed");
       setOpen(false);
       onSaved();
     } catch (error) {
+      setError(errorMessage(error));
       toast.error(errorMessage(error));
     } finally {
       setIsSaving(false);
@@ -306,6 +313,12 @@ export function SplitTransactionDialog({
             </span>
           </div>
 
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error} Your allocations are retained. Close and reopen to review
+              the latest transaction.
+            </p>
+          )}
           <DialogFooter
             className={cn(transaction.is_split && "sm:justify-between")}
           >

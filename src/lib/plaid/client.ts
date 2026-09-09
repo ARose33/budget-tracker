@@ -203,7 +203,7 @@ export async function createPlaidLinkToken(userId: string) {
       user: {
         client_user_id: userId,
       },
-      client_name: "Budget Tracker",
+      client_name: "StackMint",
       products: PLAID_PRODUCTS,
       country_codes: PLAID_COUNTRY_CODES,
       language: "en",
@@ -226,7 +226,7 @@ export async function createPlaidUpdateLinkToken(
     user: {
       client_user_id: userId,
     },
-    client_name: "Budget Tracker",
+    client_name: "StackMint",
     country_codes: PLAID_COUNTRY_CODES,
     language: "en",
     access_token: accessToken,

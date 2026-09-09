@@ -23,7 +23,7 @@ async function setup() {
       [userA],
     )
   ).rows[0].id;
-  const add = async (key, extra = {}) => {
+  const add = async (key, extra = {}, amount = -12.34) => {
     const payload = {
       connection_provider: "statement",
       external_transaction_id: key,
@@ -32,8 +32,8 @@ async function setup() {
     };
     return (
       await db.query(
-        "insert into statement_reconciliation_reviews(user_id,report_id,source_record_id,review_type,statement_account_key,account_id,account_name,transaction_date,proposed_date,amount,description,statement_file,proposed_transaction) values ($1,'synthetic-report',$2,'proposed_import','synthetic-account',$3,'Fixture checking','2026-08-02','2026-08-02',-12.34,'Synthetic statement row','synthetic.pdf',$4::jsonb) returning *",
-        [userA, key, account, JSON.stringify(payload)],
+        "insert into statement_reconciliation_reviews(user_id,report_id,source_record_id,review_type,statement_account_key,account_id,account_name,transaction_date,proposed_date,amount,description,statement_file,proposed_transaction) values ($1,'synthetic-report',$2,'proposed_import','synthetic-account',$3,'Fixture checking','2026-08-02','2026-08-02',$5,'Synthetic statement row','synthetic.pdf',$4::jsonb) returning *",
+        [userA, key, account, JSON.stringify(payload), amount],
       )
     ).rows[0];
   };
@@ -54,11 +54,16 @@ test("statement decisions preserve identity and source history, are retry-safe a
         external_transaction_id: "synthetic-source-1",
       }),
       missing = await add("missing", { external_transaction_id: null });
+    const invalidAmount = await add("invalid-amount", {}, "NaN");
     await asUser(db, userA);
     const first = await resolve(row, "imported");
     assert.deepEqual(await resolve(row, "imported"), first);
     await assert.rejects(resolve(row, "ignored"), /different decision/);
     await assert.rejects(resolve(same, "imported"), /already exists/);
+    await assert.rejects(
+      resolve(invalidAmount, "imported"),
+      /finite and exact/,
+    );
     await assert.rejects(
       resolve(missing, "imported"),
       /lacks an import identity/,

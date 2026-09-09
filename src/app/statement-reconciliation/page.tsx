@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -98,6 +98,7 @@ export default function StatementReconciliationPage() {
     Record<string, string>
   >({});
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const observedCandidates = useRef(new Map<string, number>());
   const queryString = useMemo(
     () =>
       new URLSearchParams({
@@ -126,9 +127,9 @@ export default function StatementReconciliationPage() {
           ...input,
           note: notes[input.reviewId] ?? "",
           version: data?.items[0]?.row_version,
-          candidateVersion: data?.items[0]?.candidates.find(
-            (candidate) => candidate.id === input.candidateTransactionId,
-          )?.row_version,
+          candidateVersion: input.candidateTransactionId
+            ? observedCandidates.current.get(input.candidateTransactionId)
+            : undefined,
         }),
       }),
     onSuccess: async () => {
@@ -357,12 +358,16 @@ export default function StatementReconciliationPage() {
                       name={`candidate-${item.id}`}
                       value={candidate.id}
                       checked={selectedCandidate[item.id] === candidate.id}
-                      onChange={() =>
+                      onChange={() => {
+                        observedCandidates.current.set(
+                          candidate.id,
+                          candidate.row_version,
+                        );
                         setSelectedCandidate((current) => ({
                           ...current,
                           [item.id]: candidate.id,
-                        }))
-                      }
+                        }));
+                      }}
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex justify-between gap-2">

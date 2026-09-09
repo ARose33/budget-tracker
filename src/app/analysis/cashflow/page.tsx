@@ -88,7 +88,7 @@ export default function CashFlowPage() {
         <h2 className="text-2xl font-bold">Cash Flow</h2>
         <Select value={months} onValueChange={(v) => v && setMonths(v)}>
           <SelectTrigger className="w-[150px]">
-            <SelectValue />
+            <SelectValue>Last {months} months</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="6">Last 6 months</SelectItem>

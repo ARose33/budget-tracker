@@ -15,18 +15,19 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
+import { saveError } from "@/lib/finance/cache";
 
 type EditMode = null | "category" | "account" | "description" | "date";
 
 interface BulkActionsBarProps {
   selectedCount: number;
-  onSetCategory: (categoryId: string | null) => void;
-  onSetAccount: (accountId: string) => void;
-  onFinalize: () => void;
-  onSetDescription: (description: string) => void;
-  onSetDate: (date: string) => void;
+  onSetCategory: (categoryId: string | null) => Promise<void>;
+  onSetAccount: (accountId: string) => Promise<void>;
+  onFinalize: () => Promise<void>;
+  onSetDescription: (description: string) => Promise<void>;
+  onSetDate: (date: string) => Promise<void>;
   onArchive: () => void;
-  onMarkNotDuplicate: () => void;
+  onMarkNotDuplicate: () => Promise<void>;
 }
 
 export function BulkActionsBar({
@@ -43,6 +44,21 @@ export function BulkActionsBar({
   const [descValue, setDescValue] = useState("");
   const [dateValue, setDateValue] = useState("");
 
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const run = async (action: () => Promise<void>) => {
+    if (saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await action();
+      cancelEdit();
+    } catch (error) {
+      setError(saveError(error));
+    } finally {
+      setSaving(false);
+    }
+  };
   if (selectedCount === 0) return null;
 
   const cancelEdit = () => {
@@ -52,7 +68,16 @@ export function BulkActionsBar({
   };
 
   return (
-    <div className="flex items-center gap-2 p-3 bg-muted rounded-lg border flex-wrap">
+    <fieldset
+      disabled={saving}
+      className="flex items-center gap-2 p-3 bg-muted rounded-lg border flex-wrap"
+    >
+      {error && (
+        <p role="alert" className="w-full text-sm text-destructive">
+          {error} Your draft is retained.
+        </p>
+      )}
+      {saving && <p role="status">Saving…</p>}
       <span className="text-sm font-medium mr-2">{selectedCount} selected</span>
 
       {editMode === "category" && (
@@ -60,8 +85,7 @@ export function BulkActionsBar({
           <CategorySelect
             value={null}
             onValueChange={(v) => {
-              onSetCategory(v);
-              cancelEdit();
+              void run(() => onSetCategory(v));
             }}
             placeholder="Pick line item"
             className="w-[200px]"
@@ -78,8 +102,7 @@ export function BulkActionsBar({
           <AccountSelect
             value={null}
             onValueChange={(v) => {
-              onSetAccount(v);
-              cancelEdit();
+              void run(() => onSetAccount(v));
             }}
             placeholder="Pick account"
             className="w-[220px]"
@@ -96,8 +119,7 @@ export function BulkActionsBar({
           onSubmit={(e) => {
             e.preventDefault();
             if (descValue.trim()) {
-              onSetDescription(descValue.trim());
-              cancelEdit();
+              void run(() => onSetDescription(descValue.trim()));
             }
           }}
         >
@@ -123,8 +145,7 @@ export function BulkActionsBar({
           onSubmit={(e) => {
             e.preventDefault();
             if (dateValue) {
-              onSetDate(dateValue);
-              cancelEdit();
+              void run(() => onSetDate(dateValue));
             }
           }}
         >
@@ -162,7 +183,11 @@ export function BulkActionsBar({
             <Building2 className="h-3.5 w-3.5 mr-1" />
             Account
           </Button>
-          <Button variant="outline" size="sm" onClick={onFinalize}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void run(onFinalize)}
+          >
             <CheckCircle className="h-3.5 w-3.5 mr-1" />
             Mark Final
           </Button>
@@ -182,7 +207,11 @@ export function BulkActionsBar({
             <Calendar className="h-3.5 w-3.5 mr-1" />
             Date
           </Button>
-          <Button variant="outline" size="sm" onClick={onMarkNotDuplicate}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void run(onMarkNotDuplicate)}
+          >
             <ShieldCheck className="h-3.5 w-3.5 mr-1" />
             Not a Duplicate
           </Button>
@@ -192,6 +221,6 @@ export function BulkActionsBar({
           </Button>
         </>
       )}
-    </div>
+    </fieldset>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { usePlaidLink, type PlaidLinkOnSuccess } from "react-plaid-link";
+import { useCallback, useState } from "react";
+import type { PlaidLinkOnSuccess } from "react-plaid-link";
+import { PlaidLinkLauncher } from "./plaid-link-launcher";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Loader2, RefreshCw, Unplug } from "lucide-react";
 import { toast } from "sonner";
@@ -82,19 +83,6 @@ export function PlaidConnectionCleanup() {
     }
   }, [finishRepair, invalidate]);
 
-  const { open, ready } = usePlaidLink({
-    token: linkToken,
-    onSuccess: onRepairSuccess,
-    onExit: () => {
-      setLinkToken(null);
-      setRepairingConnectionId(null);
-    },
-  });
-
-  useEffect(() => {
-    if (linkToken && ready) open();
-  }, [linkToken, open, ready]);
-
   const repairMutation = useMutation({
     mutationFn: async (connectionId: string) => {
       const response = await fetch(
@@ -162,6 +150,17 @@ export function PlaidConnectionCleanup() {
 
   return (
     <div className="space-y-3">
+      {linkToken && (
+        <PlaidLinkLauncher
+          key={linkToken}
+          token={linkToken}
+          onSuccess={onRepairSuccess}
+          onExit={() => {
+            setLinkToken(null);
+            setRepairingConnectionId(null);
+          }}
+        />
+      )}
       <ConfirmAction
         open={Boolean(disconnectId)}
         onOpenChange={(open) => {
@@ -171,6 +170,9 @@ export function PlaidConnectionCleanup() {
         description="Future synchronization stops. All accounts, transactions and connection history remain available."
         confirmLabel="Confirm disconnect"
         pending={removeMutation.isPending}
+        error={
+          removeMutation.isError ? removeMutation.error.message : undefined
+        }
         onConfirm={() => {
           if (disconnectId)
             removeMutation.mutate(disconnectId, {
@@ -257,7 +259,10 @@ export function PlaidConnectionCleanup() {
                     removeMutation.isPending ||
                     connection.status === "disconnected"
                   }
-                  onClick={() => setDisconnectId(connection.id)}
+                  onClick={() => {
+                    removeMutation.reset();
+                    setDisconnectId(connection.id);
+                  }}
                 >
                   {removeMutation.isPending ? (
                     <Loader2 className="mr-1 h-4 w-4 animate-spin" />

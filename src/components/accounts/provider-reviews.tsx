@@ -102,9 +102,13 @@ function Review({
 }) {
   const client = useQueryClient();
   const [confirm, setConfirm] = useState(false);
+  const [observed, setObserved] = useState<ProviderReview | null>(null);
   const mutation = useMutation({
     mutationFn: (decision: "accept" | "keep") =>
-      resolveProviderReview(review, decision),
+      resolveProviderReview(
+        decision === "accept" ? (observed ?? review) : review,
+        decision,
+      ),
     onSuccess: () => invalidateFinance(client),
   });
   const proposed = review.proposed_values;
@@ -123,6 +127,7 @@ function Review({
         description="Apply the bank values shown in this review? Earlier values will remain in history."
         confirmLabel="Confirm bank update"
         pending={mutation.isPending}
+        error={mutation.isError ? saveError(mutation.error) : undefined}
         onConfirm={() =>
           mutation.mutate("accept", { onSuccess: () => setConfirm(false) })
         }
@@ -202,7 +207,11 @@ function Review({
           <Button
             size="sm"
             disabled={mutation.isPending}
-            onClick={() => setConfirm(true)}
+            onClick={() => {
+              setObserved(review);
+              mutation.reset();
+              setConfirm(true);
+            }}
           >
             {label}
           </Button>

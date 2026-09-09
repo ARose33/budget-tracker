@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -38,22 +38,19 @@ export function CopyBudgetsDialog({
   const targets = months.filter((target) =>
     selected.includes(monthKey(target.year, target.month)),
   );
-  const source = items.filter((item) => item.has_budget);
-  const preview = useQuery({
-    queryKey: ["budget-copy-preview", year, month, selected],
-    queryFn: async () =>
+  const [source] = useState(() => items.filter((item) => item.has_budget));
+  const preview = useMutation({
+    mutationFn: async () =>
       Promise.all(
         targets.map(async (target) => ({
           ...target,
           workspace: await getBudgetWorkspace(target.year, target.month),
         })),
       ),
-    enabled: reviewing,
-    staleTime: 0,
   });
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!preview.data || !selected.length || preview.isFetching)
+      if (!preview.data || !selected.length || preview.isPending)
         throw new Error("Review the selected months before saving.");
       await saveBudgets(
         preview.data.flatMap((target) =>
@@ -130,7 +127,7 @@ export function CopyBudgetsDialog({
             {preview.isError ? (
               <p role="alert">
                 {saveError(preview.error)}{" "}
-                <Button variant="outline" onClick={() => preview.refetch()}>
+                <Button variant="outline" onClick={() => preview.mutate()}>
                   Retry
                 </Button>
               </p>
@@ -187,7 +184,7 @@ export function CopyBudgetsDialog({
               disabled={
                 mutation.isPending ||
                 !preview.data ||
-                preview.isFetching ||
+                preview.isPending ||
                 preview.isError
               }
               onClick={() => mutation.mutate()}
@@ -197,7 +194,10 @@ export function CopyBudgetsDialog({
           ) : (
             <Button
               disabled={!selected.length || !source.length}
-              onClick={() => setReviewing(true)}
+              onClick={() => {
+                setReviewing(true);
+                preview.mutate();
+              }}
             >
               Review changes
             </Button>

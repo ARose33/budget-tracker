@@ -28,10 +28,8 @@ export function getErrorMessage(error: unknown, fallback = "Unknown error") {
   if (isErrorLikeObject(error)) {
     const parts = [
       stringifyErrorPart(error.message),
-      stringifyErrorPart(error.error),
-      stringifyErrorPart(error.details),
-      stringifyErrorPart(error.hint),
-      stringifyErrorPart(error.code),
+      // Database details and hints can include entire financial records.
+      // Only the public message belongs in an API response.
     ].filter((part): part is string => Boolean(part));
 
     if (parts.length > 0) {
