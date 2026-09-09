@@ -175,8 +175,8 @@ export async function getCategorizationCounts(): Promise<CategorizationCounts> {
   const [uncategorized, pending, final] = await Promise.all([countStatus("uncategorized"), countStatus("pending"), countStatus("final")]);
   return { uncategorized, pending, final };
 }
-export async function categorizeNextTransactions() {
-  const response = await fetch("/api/transactions/categorize", { method: "POST" });
+export async function categorizeNextTransactions(runId: string) {
+  const response = await fetch("/api/transactions/categorize", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ runId }) });
   const result = await response.json().catch(() => null) as (CategorizationBatchResult & { error?: string }) | null;
   if (!response.ok || !result) throw new Error(result?.error ?? "Could not categorize transactions");
   return result;

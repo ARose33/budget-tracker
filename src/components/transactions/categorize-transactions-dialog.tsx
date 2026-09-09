@@ -32,6 +32,7 @@ export function CategorizeTransactionsDialog({
 }: CategorizeTransactionsDialogProps) {
   const queryClient = useQueryClient();
   const stopRequested = useRef(false);
+  const pendingRun = useRef<string | null>(null);
   const [open, setOpen] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
@@ -43,10 +44,7 @@ export function CategorizeTransactionsDialog({
   });
 
   const refreshData = () => {
-    void queryClient.invalidateQueries({ queryKey: ["transactions"] });
-    void queryClient.invalidateQueries({ queryKey: ["categorization-counts"] });
-    void queryClient.invalidateQueries({ queryKey: ["budget"] });
-    void queryClient.invalidateQueries({ queryKey: ["budget-uncategorized"] });
+    void queryClient.invalidateQueries();
   };
 
   const openConfirmation = () => {
@@ -81,7 +79,9 @@ export function CategorizeTransactionsDialog({
 
     try {
       while (remaining > 0 && !stopRequested.current) {
-        const result = await categorizeNextTransactions();
+        pendingRun.current ??= crypto.randomUUID();
+        const result = await categorizeNextTransactions(pendingRun.current);
+        pendingRun.current = null;
         processed += result.processed;
         remaining = result.remaining;
         setProgress({ total: initialTotal, processed, remaining });
@@ -157,7 +157,7 @@ export function CategorizeTransactionsDialog({
             <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
               OpenAI receives only the transaction description, amount, account name,
               available categories, and representative Final examples. Notes and identity
-              information are not sent.
+              fields are excluded. Descriptions and account names may still contain personal information. Bank-pending activity is excluded until posted.
             </div>
           )}
 

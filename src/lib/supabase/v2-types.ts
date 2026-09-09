@@ -34,6 +34,9 @@ export type Database = Omit<Baseline, "public"> & {
       }>;
     };
     Functions: Baseline["public"]["Functions"] & {
+      stackmint_begin_categorization: RPC<{ p_id: string; p_token: string }>;
+      stackmint_finish_categorization: RPC<{ p_id: string; p_token: string; p_items?: Json }>;
+      stackmint_categorization_matches: RPC<{ p_ids: string[] }>;
       stackmint_budget: RPC<{ p_year: number; p_month: number }>;
       stackmint_budget_activity: RPC<{ p_year: number; p_month: number; p_category_id?: string; p_filter?: string; p_offset?: number; p_limit?: number }>;
       stackmint_analysis: RPC<{ p_from: string; p_to: string }>;
