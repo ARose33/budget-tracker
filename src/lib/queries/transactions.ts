@@ -1,7 +1,11 @@
 import { supabase } from "@/lib/supabase/client";
+import { z } from "zod";
 import { getCurrentUserId } from "@/lib/supabase/auth";
 
 export interface Transaction {
+  row_version: number;
+  archived_at: string | null;
+  external_status: string | null;
   id: string;
   date: string;
   description: string | null;
@@ -22,7 +26,7 @@ export interface Transaction {
   budget_categories?: {
     group_name: string;
     line_item_name: string;
-    category_type: string;
+    category_type: string | null;
   } | null;
   accounts?: {
     name: string;
@@ -33,16 +37,18 @@ export interface Transaction {
 export interface SplitAllocation {
   id: string;
   amount: number;
-  category_id: string;
+  category_id: string | null;
   description: string | null;
   budget_categories?: {
     group_name: string;
     line_item_name: string;
-    category_type: string;
+    category_type: string | null;
   } | null;
 }
 
 export interface TransactionFilters {
+  id?: string;
+  history?: "active" | "all" | "archived" | "removed";
   search?: string;
   categoryType?: "Income" | "Expense";
   categoryGroup?: string;
@@ -86,367 +92,92 @@ export interface TransactionSort {
   direction: "asc" | "desc";
 }
 
-export async function getTransactions(
-  page: number = 0,
-  pageSize: number = 50,
-  filters: TransactionFilters = {},
-  sort: TransactionSort = { field: "date", direction: "desc" }
-): Promise<{ data: Transaction[]; count: number }> {
-  const userId = await getCurrentUserId();
-  let categoryIds: string[] | null = null;
 
-  if (filters.categoryId) {
-    categoryIds = [filters.categoryId];
-  } else if (filters.categoryGroup || filters.categoryType) {
-    let categoryQuery = supabase
-      .from("budget_categories")
-      .select("id")
-      .eq("user_id", userId);
-
-    if (filters.categoryGroup) {
-      categoryQuery = categoryQuery.eq("group_name", filters.categoryGroup);
-    }
-    if (filters.categoryType) {
-      categoryQuery = categoryQuery.ilike("category_type", filters.categoryType);
-    }
-
-    const { data: categories, error: categoryError } = await categoryQuery;
-
-    if (categoryError) throw categoryError;
-    categoryIds = categories?.map((category) => category.id) ?? [];
-    if (categoryIds.length === 0) return { data: [], count: 0 };
-  }
-
-  let splitParentIds: string[] = [];
-  if (categoryIds) {
-    const { data: allocationParents, error: allocationError } = await supabase
-      .from("transactions")
-      .select("parent_id")
-      .eq("user_id", userId)
-      .not("parent_id", "is", null)
-      .in("category_id", categoryIds);
-
-    if (allocationError) throw allocationError;
-    splitParentIds = Array.from(
-      new Set(
-        (allocationParents ?? [])
-          .map((row) => row.parent_id)
-          .filter((id): id is string => Boolean(id))
-      )
-    );
-  }
-
-  let query = supabase
-    .from("transactions")
-    .select(
-      `
-      id, date, description, amount, category_id, account_id,
-      status, categorization_status, is_split, parent_id, source, upload_source, created_at,
-      plaid_transaction_id, not_duplicate,
-      budget_categories(group_name, line_item_name, category_type),
-      accounts(name, institution)
-    `,
-      { count: "exact" }
-    )
-    .eq("user_id", userId)
-    .is("parent_id", null) // exclude split children from main list
-    .or("external_status.is.null,external_status.neq.removed");
-
-  if (filters.search) {
-    query = query.ilike("description", `%${filters.search}%`);
-  }
-  if (filters.status === "uncategorized" || filters.uncategorizedOnly) {
-    query = query.eq("categorization_status", "uncategorized");
-  } else if (categoryIds) {
-    const categoryList = categoryIds.join(",");
-    if (splitParentIds.length > 0) {
-      query = query.or(
-        `category_id.in.(${categoryList}),id.in.(${splitParentIds.join(",")})`
-      );
-    } else {
-      query = query.in("category_id", categoryIds);
-    }
-  }
-  if (filters.accountId) {
-    query = query.eq("account_id", filters.accountId);
-  }
-  if (filters.status) {
-    query = query.eq("categorization_status", filters.status);
-  }
-  if (filters.dateFrom) {
-    query = query.gte("date", filters.dateFrom);
-  }
-  if (filters.dateTo) {
-    query = query.lte("date", filters.dateTo);
-  }
-
-  const ascending = sort.direction === "asc";
-  const sortColumn =
-    sort.field === "group"
-      ? "budget_categories(group_name)"
-      : sort.field === "lineItem"
-        ? "budget_categories(line_item_name)"
-        : sort.field === "account"
-          ? "accounts(name)"
-      : sort.field === "status"
-        ? "categorization_status"
-        : sort.field;
-
-  query = query
-    .order(sortColumn, { ascending, nullsFirst: false })
-    .order("created_at", { ascending: false });
-
-  const from = page * pageSize;
-  const to = from + pageSize - 1;
-  query = query.range(from, to);
-
-  const { data, error, count } = await query;
-  if (error) throw error;
-
-  const transactions =
-    (data as Omit<Transaction, "notes" | "allocations">[]) ?? [];
-  const transactionIds = transactions.map((transaction) => transaction.id);
-  const [notes, allocations] = await Promise.all([
-    getTransactionNotes(transactionIds),
-    getSplitAllocations(transactionIds, userId),
-  ]);
-
-  return {
-    data: transactions.map((transaction) => ({
-      ...transaction,
-      notes: notes[transaction.id] ?? null,
-      allocations: allocations[transaction.id] ?? [],
-    })),
-    count: count ?? 0,
-  };
-}
-
-async function getSplitAllocations(transactionIds: string[], userId: string) {
-  if (transactionIds.length === 0) {
-    return {} as Record<string, SplitAllocation[]>;
-  }
-
-  const { data, error } = await supabase
-    .from("transactions")
-    .select(
-      `
-      id, parent_id, amount, category_id, description,
-      budget_categories(group_name, line_item_name, category_type)
-    `
-    )
-    .eq("user_id", userId)
-    .in("parent_id", transactionIds)
-    .order("created_at", { ascending: true });
-
-  if (error) throw error;
-
-  const grouped: Record<string, SplitAllocation[]> = {};
-  for (const allocation of data ?? []) {
-    if (!allocation.parent_id || !allocation.category_id) continue;
-    const relation = Array.isArray(allocation.budget_categories)
-      ? allocation.budget_categories[0]
-      : allocation.budget_categories;
-    (grouped[allocation.parent_id] ??= []).push({
-      id: allocation.id,
-      amount: Number(allocation.amount),
-      category_id: allocation.category_id,
-      description: allocation.description,
-      budget_categories: relation ?? null,
-    });
-  }
-  return grouped;
-}
-
-export async function updateTransactionCategory(
-  transactionId: string,
-  categoryId: string | null
-) {
-  const userId = await getCurrentUserId();
-  const { error } = await supabase
-    .from("transactions")
-    .update({
-      category_id: categoryId,
-      categorization_status: categoryId ? "final" : "uncategorized",
-    })
-    .eq("id", transactionId)
-    .eq("user_id", userId);
-  if (error) throw error;
-}
-
-export async function updateTransactionNotes(
-  transactionId: string,
-  notes: string | null
-) {
-  const response = await fetch("/api/transactions/notes", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ transactionId, notes }),
+const category = z.object({ group_name: z.string(), line_item_name: z.string(), category_type: z.string().nullable() });
+const transactionSchema = z.object({
+  id: z.string(), date: z.string(), description: z.string().nullable(), notes: z.string().nullable(), amount: z.number(),
+  category_id: z.string().nullable(), account_id: z.string().nullable(),
+  categorization_status: z.enum(["uncategorized", "pending", "final"]), status: z.string().nullable(),
+  is_split: z.boolean().nullable(), parent_id: z.string().nullable(), source: z.string().nullable(),
+  upload_source: z.string().nullable(), created_at: z.string().nullable(), plaid_transaction_id: z.string().nullable(),
+  not_duplicate: z.boolean(), row_version: z.number(), archived_at: z.string().nullable(), external_status: z.string().nullable(),
+  budget_categories: category.nullable(), accounts: z.object({ name: z.string(), institution: z.string() }).nullable(),
+  allocations: z.array(z.object({ id: z.string(), amount: z.number(), category_id: z.string().nullable(), description: z.string().nullable(), budget_categories: category.nullable() })),
+});
+export async function getTransactions(page = 0, pageSize = 50, filters: TransactionFilters = {}, sort: TransactionSort = { field: "date", direction: "desc" }): Promise<{ data: Transaction[]; count: number }> {
+  const { data, error } = await supabase.rpc("stackmint_transactions", {
+    p_filters: { ...filters }, p_page: page, p_size: pageSize, p_sort: sort.field, p_desc: sort.direction === "desc",
   });
-  if (!response.ok) {
-    const result = await response.json().catch(() => null);
-    throw new Error(result?.error ?? "Could not save transaction note");
-  }
+  if (error) throw error;
+  return z.object({ count: z.number(), data: z.array(transactionSchema) }).parse(data);
 }
-
-async function getTransactionNotes(transactionIds: string[]) {
-  if (transactionIds.length === 0) return {} as Record<string, string>;
-
-  const params = new URLSearchParams({ ids: transactionIds.join(",") });
-  const response = await fetch(`/api/transactions/notes?${params}`);
-  if (!response.ok) return {} as Record<string, string>;
-
-  const result = (await response.json()) as { notes?: Record<string, string> };
-  return result.notes ?? {};
+export async function getTransaction(id: string) {
+  const result = await getTransactions(0, 1, { id, history: "all" });
+  if (!result.data[0]) throw new Error("Transaction not found.");
+  return result.data[0];
 }
-
-export async function bulkUpdateCategory(
-  transactionIds: string[],
-  categoryId: string | null
-) {
-  const userId = await getCurrentUserId();
-  const { error } = await supabase
-    .from("transactions")
-    .update({
-      category_id: categoryId,
-      categorization_status: categoryId ? "final" : "uncategorized",
-    })
-    .in("id", transactionIds)
-    .eq("user_id", userId);
+export type TransactionVersion = { id: string; version: number };
+export const observedVersion = (transaction: Transaction): TransactionVersion => ({ id: transaction.id, version: transaction.row_version });
+export async function editTransactions(items: TransactionVersion[], patch: {
+  category_id?: string | null; account_id?: string; description?: string; date?: string;
+  categorization_status?: CategorizationStatus; not_duplicate?: boolean; archived?: boolean;
+}) {
+  const { error } = await supabase.rpc("stackmint_edit_transactions", { p_items: items.map(item => ({ ...item })), p_patch: { ...patch } });
   if (error) throw error;
 }
-
-export async function finalizeTransactions(transactionIds: string[]) {
-  const userId = await getCurrentUserId();
-  const { error } = await supabase
-    .from("transactions")
-    .update({ categorization_status: "final" })
-    .in("id", transactionIds)
-    .eq("user_id", userId)
-    .or("category_id.not.is.null,is_split.eq.true");
+export const updateTransactionCategory = (item: TransactionVersion, categoryId: string | null) =>
+  editTransactions([item], { category_id: categoryId, categorization_status: categoryId ? "final" : "uncategorized" });
+export const bulkUpdateCategory = (items: TransactionVersion[], categoryId: string | null) =>
+  editTransactions(items, { category_id: categoryId, categorization_status: categoryId ? "final" : "uncategorized" });
+export const finalizeTransactions = (items: TransactionVersion[]) => editTransactions(items, { categorization_status: "final" });
+export const archiveTransactions = (items: TransactionVersion[], archived = true) => editTransactions(items, { archived });
+export const bulkUpdateAccount = (items: TransactionVersion[], accountId: string) => editTransactions(items, { account_id: accountId });
+export const bulkUpdateDate = (items: TransactionVersion[], date: string) => editTransactions(items, { date });
+export const bulkUpdateDescription = (items: TransactionVersion[], description: string) => editTransactions(items, { description });
+export const markNotDuplicate = (items: TransactionVersion[], notDuplicate: boolean) => editTransactions(items, { not_duplicate: notDuplicate });
+export async function splitTransaction(parent: TransactionVersion, allocations: { id?: string; category_id: string; amount: number; description?: string }[]) {
+  const { error } = await supabase.rpc("stackmint_save_split", {
+    p_parent_id: parent.id, p_expected_version: parent.version, p_allocations: allocations.map(allocation => ({ ...allocation })),
+  });
   if (error) throw error;
 }
-
-export async function deleteTransactions(transactionIds: string[]) {
-  const userId = await getCurrentUserId();
-  const { error } = await supabase
-    .from("transactions")
-    .delete()
-    .in("id", transactionIds)
-    .eq("user_id", userId);
+export async function unsplitTransaction(parent: TransactionVersion) {
+  const { error } = await supabase.rpc("stackmint_unsplit", { p_parent_id: parent.id, p_expected_version: parent.version });
   if (error) throw error;
 }
-
+const noteSchema = z.object({ content: z.string(), version: z.number(), hash: z.string() });
+export type NoteState = z.infer<typeof noteSchema>;
+export async function getTransactionNote(transactionId: string): Promise<NoteState> {
+  const response = await fetch("/api/transactions/notes?ids=" + encodeURIComponent(transactionId));
+  if (!response.ok) throw new Error("This note could not be loaded. Retry before editing.");
+  return noteSchema.parse(await response.json());
+}
+export async function updateTransactionNotes(transactionId: string, notes: string, original: NoteState) {
+  const response = await fetch("/api/transactions/notes", {
+    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transactionId, notes, expectedVersion: original.version, expectedHash: original.hash }),
+  });
+  if (!response.ok) throw new Error(response.status === 409 ? "This note changed. Close and reopen it before saving." : "Could not save transaction note.");
+}
 export async function findDuplicates() {
   const { data, error } = await supabase.rpc("find_duplicate_transactions");
   if (error) throw error;
   return data ?? [];
 }
-
-export async function bulkUpdateAccount(
-  transactionIds: string[],
-  accountId: string
-) {
-  const userId = await getCurrentUserId();
-  const { error } = await supabase
-    .from("transactions")
-    .update({ account_id: accountId })
-    .in("id", transactionIds)
-    .eq("user_id", userId);
-  if (error) throw error;
-}
-
 export async function getCategorizationCounts(): Promise<CategorizationCounts> {
   const userId = await getCurrentUserId();
-
   const countStatus = async (status: CategorizationStatus) => {
-    const { count, error } = await supabase
-      .from("transactions")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("categorization_status", status)
-      .is("parent_id", null)
+    const { count, error } = await supabase.from("transactions").select("id", { count: "exact", head: true })
+      .eq("user_id", userId).eq("categorization_status", status).is("parent_id", null).is("archived_at", null)
       .or("external_status.is.null,external_status.neq.removed");
     if (error) throw error;
     return count ?? 0;
   };
-
-  const [uncategorized, pending, final] = await Promise.all([
-    countStatus("uncategorized"),
-    countStatus("pending"),
-    countStatus("final"),
-  ]);
-
+  const [uncategorized, pending, final] = await Promise.all([countStatus("uncategorized"), countStatus("pending"), countStatus("final")]);
   return { uncategorized, pending, final };
 }
-
 export async function categorizeNextTransactions() {
-  const response = await fetch("/api/transactions/categorize", {
-    method: "POST",
-  });
-  const result = (await response.json().catch(() => null)) as
-    | (CategorizationBatchResult & { error?: string })
-    | null;
-
-  if (!response.ok || !result) {
-    throw new Error(result?.error ?? "Could not categorize transactions");
-  }
-
+  const response = await fetch("/api/transactions/categorize", { method: "POST" });
+  const result = await response.json().catch(() => null) as (CategorizationBatchResult & { error?: string }) | null;
+  if (!response.ok || !result) throw new Error(result?.error ?? "Could not categorize transactions");
   return result;
-}
-
-export async function bulkUpdateDate(
-  transactionIds: string[],
-  date: string
-) {
-  const userId = await getCurrentUserId();
-  const { error } = await supabase
-    .from("transactions")
-    .update({ date })
-    .in("id", transactionIds)
-    .eq("user_id", userId);
-  if (error) throw error;
-}
-
-export async function bulkUpdateDescription(
-  transactionIds: string[],
-  description: string
-) {
-  const userId = await getCurrentUserId();
-  const { error } = await supabase
-    .from("transactions")
-    .update({ description })
-    .in("id", transactionIds)
-    .eq("user_id", userId);
-  if (error) throw error;
-}
-
-export async function markNotDuplicate(
-  transactionIds: string[],
-  notDuplicate: boolean
-) {
-  const userId = await getCurrentUserId();
-  const { error } = await supabase
-    .from("transactions")
-    .update({ not_duplicate: notDuplicate })
-    .in("id", transactionIds)
-    .eq("user_id", userId);
-  if (error) throw error;
-}
-
-export async function splitTransaction(
-  parentId: string,
-  allocations: { category_id: string; amount: number; description?: string }[]
-) {
-  const { error } = await supabase.rpc("save_transaction_split", {
-    p_parent_id: parentId,
-    p_allocations: allocations,
-  });
-  if (error) throw error;
-}
-
-export async function unsplitTransaction(parentId: string) {
-  const { error } = await supabase.rpc("unsplit_transaction", {
-    p_parent_id: parentId,
-  });
-  if (error) throw error;
 }

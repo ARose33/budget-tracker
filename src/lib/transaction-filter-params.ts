@@ -7,6 +7,7 @@ type ReadableSearchParams = Pick<URLSearchParams, "get" | "toString">;
 
 const FILTER_PARAM_KEYS = [
   "search",
+  "history",
   "categoryType",
   "categoryGroup",
   "categoryId",
@@ -39,6 +40,7 @@ export function parseTransactionFilters(
   const legacyUncategorized = uncategorized === "true" || uncategorized === "1";
 
   return {
+    history: searchParams.get("history") === "all" ? "all" : searchParams.get("history") === "archived" ? "archived" : searchParams.get("history") === "removed" ? "removed" : undefined,
     search: searchParams.get("search") || undefined,
     categoryType: parseCategoryType(searchParams.get("categoryType")),
     categoryGroup: searchParams.get("categoryGroup") || undefined,
@@ -64,6 +66,7 @@ export function updateTransactionFilterParams(
   }
 
   if (filters.search) params.set("search", filters.search);
+  if (filters.history && filters.history !== "active") params.set("history", filters.history);
   if (filters.categoryType) params.set("categoryType", filters.categoryType);
   if (filters.categoryGroup) params.set("categoryGroup", filters.categoryGroup);
   if (filters.categoryId) params.set("categoryId", filters.categoryId);

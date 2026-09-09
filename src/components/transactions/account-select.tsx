@@ -28,7 +28,7 @@ export function AccountSelect({
     queryFn: getAccounts,
   });
 
-  const visibleAccounts = accounts.filter((a) => !a.hidden);
+  const visibleAccounts = accounts.filter((a) => !a.hidden || a.id === value);
 
   // Group by type
   const grouped = visibleAccounts.reduce(
@@ -44,7 +44,7 @@ export function AccountSelect({
   return (
     <Select value={value ?? ""} onValueChange={(v) => v && onValueChange(v)}>
       <SelectTrigger className={className}>
-        <SelectValue placeholder={placeholder} />
+        <SelectValue placeholder={placeholder}>{accounts.find(account => account.id === value)?.name ?? (value ? "Historical account" : placeholder)}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {Object.entries(grouped).map(([type, accts]) => (

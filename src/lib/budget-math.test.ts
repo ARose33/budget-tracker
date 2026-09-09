@@ -4,6 +4,13 @@ import test from "node:test";
 import { calculateBudgetTotals } from "./budget-math.ts";
 import type { BudgetGroup } from "./queries/budget.ts";
 
+test("totals add exact cents across category groups", () => {
+  const totals = calculateBudgetTotals([group("Expense", 0.1, 0.01, 0), group("Expense", 0.2, 0.02, 0)]);
+  assert.equal(totals.budgetedExpenses, 0.3);
+  assert.equal(totals.actualExpenses, 0.03);
+  assert.equal(totals.remainingExpenses, 0.27);
+});
+
 function group(
   categoryType: "Income" | "Expense",
   budget: number,

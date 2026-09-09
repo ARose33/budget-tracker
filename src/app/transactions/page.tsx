@@ -1,20 +1,20 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   getTransactions,
   updateTransactionCategory,
-  updateTransactionNotes,
   bulkUpdateCategory,
   bulkUpdateAccount,
   finalizeTransactions,
   getCategorizationCounts,
   bulkUpdateDescription,
   bulkUpdateDate,
-  deleteTransactions,
+  archiveTransactions,
+  observedVersion,
   markNotDuplicate,
   type TransactionFilters,
   type TransactionSort,
@@ -29,15 +29,6 @@ import { CategorizeTransactionsDialog } from "@/components/transactions/categori
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   ChevronLeft,
   ChevronRight,
@@ -51,6 +42,8 @@ import {
   Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { invalidateFinance, saveError } from "@/lib/finance/cache";
+import { TransactionEditor } from "@/components/transactions/transaction-editor";
 import {
   parseTransactionFilters,
   updateTransactionFilterParams,
@@ -76,6 +69,7 @@ function TransactionsContent() {
   });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const pageSize = 50;
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const handleFiltersChange = (nextFilters: TransactionFilters) => {
     setPage(0);
@@ -90,7 +84,7 @@ function TransactionsContent() {
     );
   };
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["transactions", page, filters, sort],
     queryFn: () => getTransactions(page, pageSize, filters, sort),
   });
@@ -121,33 +115,29 @@ function TransactionsContent() {
     setSelected(next);
   };
 
+  const versions = (ids: string[]) => ids.map(id => {
+    const transaction = transactions.find(row => row.id === id);
+    if (!transaction) throw new Error("Selection changed. Select these transactions again.");
+    return observedVersion(transaction);
+  });
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ["transactions"] });
-    queryClient.invalidateQueries({ queryKey: ["categorization-counts"] });
-    queryClient.invalidateQueries({ queryKey: ["budget"] });
-    queryClient.invalidateQueries({ queryKey: ["budget-uncategorized"] });
+    void invalidateFinance(queryClient);
     setSelected(new Set());
   };
+  const onSaveError = (error: unknown) => toast.error(saveError(error));
 
   const categoryMutation = useMutation({
     mutationFn: ({ id, categoryId }: { id: string; categoryId: string | null }) =>
-      updateTransactionCategory(id, categoryId),
+      updateTransactionCategory(versions([id])[0], categoryId),
     onSuccess: invalidate,
+    onError: onSaveError,
   });
 
-  const notesMutation = useMutation({
-    mutationFn: ({ id, notes }: { id: string; notes: string | null }) =>
-      updateTransactionNotes(id, notes),
-    onSuccess: () => {
-      toast.success("Transaction note saved");
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
-    },
-    onError: () => toast.error("Could not save transaction note"),
-  });
 
   const bulkCategoryMutation = useMutation({
+    onError: onSaveError,
     mutationFn: (categoryId: string | null) =>
-      bulkUpdateCategory(Array.from(selected), categoryId),
+      bulkUpdateCategory(versions(Array.from(selected)), categoryId),
     onSuccess: () => {
       toast.success(`Updated ${selected.size} transactions`);
       invalidate();
@@ -155,15 +145,17 @@ function TransactionsContent() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteTransactions(Array.from(selected)),
+    onError: onSaveError,
+    mutationFn: () => archiveTransactions(versions(Array.from(selected))),
     onSuccess: () => {
-      toast.success(`Deleted ${selected.size} transactions`);
+      toast.success(`Archived ${selected.size} transactions; history retained`);
       invalidate();
     },
   });
 
   const notDuplicateMutation = useMutation({
-    mutationFn: () => markNotDuplicate(Array.from(selected), true),
+    onError: onSaveError,
+    mutationFn: () => markNotDuplicate(versions(Array.from(selected)), true),
     onSuccess: () => {
       toast.success(`Marked ${selected.size} transactions as verified (not duplicate)`);
       invalidate();
@@ -171,8 +163,9 @@ function TransactionsContent() {
   });
 
   const bulkAccountMutation = useMutation({
+    onError: onSaveError,
     mutationFn: (accountId: string) =>
-      bulkUpdateAccount(Array.from(selected), accountId),
+      bulkUpdateAccount(versions(Array.from(selected)), accountId),
     onSuccess: () => {
       toast.success(`Updated account on ${selected.size} transactions`);
       invalidate();
@@ -180,7 +173,8 @@ function TransactionsContent() {
   });
 
   const finalizeMutation = useMutation({
-    mutationFn: (transactionIds: string[]) => finalizeTransactions(transactionIds),
+    onError: onSaveError,
+    mutationFn: (transactionIds: string[]) => finalizeTransactions(versions(transactionIds)),
     onSuccess: () => {
       toast.success("Marked transaction Final");
       invalidate();
@@ -188,7 +182,8 @@ function TransactionsContent() {
   });
 
   const bulkFinalizeMutation = useMutation({
-    mutationFn: () => finalizeTransactions(Array.from(selected)),
+    onError: onSaveError,
+    mutationFn: () => finalizeTransactions(versions(Array.from(selected))),
     onSuccess: () => {
       toast.success(`Marked ${selected.size} transactions Final`);
       invalidate();
@@ -196,8 +191,9 @@ function TransactionsContent() {
   });
 
   const bulkDescriptionMutation = useMutation({
+    onError: onSaveError,
     mutationFn: (description: string) =>
-      bulkUpdateDescription(Array.from(selected), description),
+      bulkUpdateDescription(versions(Array.from(selected)), description),
     onSuccess: () => {
       toast.success(`Updated description on ${selected.size} transactions`);
       invalidate();
@@ -205,8 +201,9 @@ function TransactionsContent() {
   });
 
   const bulkDateMutation = useMutation({
+    onError: onSaveError,
     mutationFn: (date: string) =>
-      bulkUpdateDate(Array.from(selected), date),
+      bulkUpdateDate(versions(Array.from(selected)), date),
     onSuccess: () => {
       toast.success(`Updated date on ${selected.size} transactions`);
       invalidate();
@@ -245,17 +242,18 @@ function TransactionsContent() {
         onFinalize={() => bulkFinalizeMutation.mutate()}
         onSetDescription={(d) => bulkDescriptionMutation.mutate(d)}
         onSetDate={(d) => bulkDateMutation.mutate(d)}
-        onDelete={() => deleteMutation.mutate()}
+        onArchive={() => { if (window.confirm("Archive these selected transactions? They will leave active totals and remain accessible in History.")) deleteMutation.mutate(); }}
         onMarkNotDuplicate={() => notDuplicateMutation.mutate()}
       />
 
-      {isLoading ? (
+      {editingId ? <TransactionEditor id={editingId} close={() => setEditingId(null)} /> : null}
+      {isError ? <div role="alert" className="rounded border p-5">{saveError(error)} <Button variant="outline" onClick={() => refetch()}>Retry</Button></div> : isLoading ? (
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
         <>
-          <div className="border rounded-lg overflow-hidden">
+          <div className="border rounded-lg overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted">
                 <tr>
@@ -286,9 +284,7 @@ function TransactionsContent() {
                     onCategoryChange={(cid) =>
                       categoryMutation.mutate({ id: t.id, categoryId: cid })
                     }
-                    onNotesChange={(notes) =>
-                      notesMutation.mutateAsync({ id: t.id, notes })
-                    }
+                    onEdit={() => setEditingId(t.id)}
                     onFinalize={() => finalizeMutation.mutate([t.id])}
                     onSplitChange={invalidate}
                   />
@@ -309,7 +305,7 @@ function TransactionsContent() {
 
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              Showing {page * pageSize + 1}-
+              Showing {totalCount ? page * pageSize + 1 : 0}-
               {Math.min((page + 1) * pageSize, totalCount)} of{" "}
               {totalCount.toLocaleString()}
             </p>
@@ -324,7 +320,7 @@ function TransactionsContent() {
                 Prev
               </Button>
               <span className="text-sm text-muted-foreground">
-                Page {page + 1} of {totalPages}
+                Page {page + 1} of {Math.max(1, totalPages)}
               </span>
               <Button
                 variant="outline"
@@ -409,7 +405,7 @@ function TransactionRow({
   isSelected,
   onToggle,
   onCategoryChange,
-  onNotesChange,
+  onEdit,
   onFinalize,
   onSplitChange,
 }: {
@@ -417,7 +413,7 @@ function TransactionRow({
   isSelected: boolean;
   onToggle: () => void;
   onCategoryChange: (categoryId: string | null) => void;
-  onNotesChange: (notes: string | null) => Promise<unknown>;
+  onEdit: () => void;
   onFinalize: () => void;
   onSplitChange: () => void;
 }) {
@@ -445,7 +441,8 @@ function TransactionRow({
       </td>
       <td className="p-3 whitespace-nowrap">{t.date}</td>
       <td className="p-3 max-w-[250px] truncate" title={t.description ?? ""}>
-        {t.description}
+        <button className="text-left hover:underline" onClick={onEdit}>{t.description || "Transaction"}</button>
+        {t.archived_at ? <Badge variant="outline">Archived</Badge> : t.external_status === "removed" ? <Badge variant="outline">Removed at source</Badge> : null}
         {t.is_split && (
           <Badge
             variant="outline"
@@ -511,12 +508,12 @@ function TransactionRow({
           {t.categorization_status === "final"
             ? "Final"
             : t.categorization_status === "pending"
-              ? "Pending"
+              ? "To review"
               : "Uncategorized"}
         </Badge>
       </td>
       <td className="p-3 text-center">
-        <TransactionNoteDialog transaction={t} onSave={onNotesChange} />
+        <Button variant="ghost" size="icon-sm" onClick={onEdit} aria-label="Open transaction details and note"><StickyNote className="size-4" /></Button>
       </td>
       <td className="p-3 text-center">
         <div className="flex items-center justify-center gap-1">
@@ -591,76 +588,5 @@ function TransactionRow({
       </tr>
     )}
     </>
-  );
-}
-
-function TransactionNoteDialog({
-  transaction,
-  onSave,
-}: {
-  transaction: Transaction;
-  onSave: (notes: string | null) => Promise<unknown>;
-}) {
-  const [open, setOpen] = useState(false);
-  const [notes, setNotes] = useState(transaction.notes ?? "");
-  const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    if (!open) setNotes(transaction.notes ?? "");
-  }, [open, transaction.notes]);
-
-  const save = async () => {
-    setIsSaving(true);
-    try {
-      const normalizedNotes = notes.trim() || null;
-      await onSave(normalizedNotes);
-      setNotes(normalizedNotes ?? "");
-      setOpen(false);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={() => setOpen(true)}
-        aria-label={transaction.notes ? "Edit transaction note" : "Add transaction note"}
-        title={transaction.notes ?? "Add note"}
-        className={cn(transaction.notes && "text-blue-600")}
-      >
-        <StickyNote className={cn("h-4 w-4", transaction.notes && "fill-current/15")} />
-      </Button>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Transaction note</DialogTitle>
-          <DialogDescription>
-            Add a private note for {transaction.description || "this transaction"}.
-          </DialogDescription>
-        </DialogHeader>
-        <Textarea
-          value={notes}
-          onChange={(event) => setNotes(event.target.value)}
-          placeholder="Add details, context, or a reminder..."
-          rows={5}
-          maxLength={2000}
-          autoFocus
-        />
-        <div className="text-right text-xs text-muted-foreground">
-          {notes.length}/2000
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>
-            Cancel
-          </Button>
-          <Button onClick={save} disabled={isSaving}>
-            {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
-            Save note
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }

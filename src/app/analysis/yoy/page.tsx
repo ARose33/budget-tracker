@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { saveError } from "@/lib/finance/cache";
 import { getYearOverYearSpending } from "@/lib/queries/analysis";
 import {
   BarChart,
@@ -37,7 +39,7 @@ function formatCurrency(amount: number) {
 }
 
 export default function YearOverYearPage() {
-  const { data: raw = [], isLoading } = useQuery({
+  const { data: raw = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ["yoy-spending"],
     queryFn: getYearOverYearSpending,
   });
@@ -57,7 +59,7 @@ export default function YearOverYearPage() {
     const data = MONTH_LABELS.map((label, i) => {
       const row: Record<string, string | number> = { month: label };
       for (const year of years) {
-        row[String(year)] = yearMonthTotals.get(`${year}-${i + 1}`) ?? 0;
+        if (year < new Date().getFullYear() || i <= new Date().getMonth()) row[String(year)] = yearMonthTotals.get(`${year}-${i + 1}`) ?? 0;
       }
       return row;
     });
@@ -65,8 +67,10 @@ export default function YearOverYearPage() {
     return { chartData: data, years };
   }, [raw]);
 
+  if (isError) return <div role="alert" className="rounded border p-6">Analysis could not be loaded. {saveError(error)} <Button variant="outline" onClick={() => refetch()}>Retry</Button></div>;
   return (
     <div className="max-w-6xl mx-auto space-y-6">
+      <p className="text-xs text-muted-foreground">All accounts · USD · Posted category activity with refunds netted. Transfers and uncategorized transactions are excluded. The current month is partial.</p>
       <h2 className="text-2xl font-bold">Year over Year Comparison</h2>
 
       <Card>

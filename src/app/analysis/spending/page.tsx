@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { saveError } from "@/lib/finance/cache";
 import {
   getSpendingByMonth,
   type SpendingGranularity,
@@ -36,7 +38,7 @@ export default function SpendingPage() {
   const [months, setMonths] = useState("12");
   const [granularity, setGranularity] = useState<SpendingGranularity>("group");
 
-  const { data: raw = [], isLoading } = useQuery({
+  const { data: raw = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ["spending-by-month", months, granularity],
     queryFn: () => getSpendingByMonth(Number(months), granularity),
   });
@@ -58,9 +60,11 @@ export default function SpendingPage() {
     )
   );
 
+  if (isError) return <div role="alert" className="rounded border p-6">Analysis could not be loaded. {saveError(error)} <Button variant="outline" onClick={() => refetch()}>Retry</Button></div>;
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+      <p className="text-xs text-muted-foreground">All accounts · USD · Posted category activity with refunds netted. Transfers and uncategorized transactions are excluded. The current month is partial.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl font-bold">Spending Trends</h2>
         <div className="flex items-center gap-2">
           <Select

@@ -17,11 +17,13 @@ import { CategorySelect } from "@/components/transactions/category-select";
 import {
   splitTransaction,
   unsplitTransaction,
+  observedVersion,
   type Transaction,
 } from "@/lib/queries/transactions";
 import { cn } from "@/lib/utils";
 
 interface DraftAllocation {
+  id?: string;
   key: string;
   categoryId: string | null;
   amount: string;
@@ -65,6 +67,7 @@ export function SplitTransactionDialog({
       transaction.allocations.length >= 2
         ? transaction.allocations.map((allocation) => ({
             key: allocation.id,
+            id: allocation.id,
             categoryId: allocation.category_id,
             amount: Math.abs(allocation.amount).toFixed(2),
             description:
@@ -116,8 +119,9 @@ export function SplitTransactionDialog({
     try {
       const sign = transaction.amount < 0 ? -1 : 1;
       await splitTransaction(
-        transaction.id,
+        observedVersion(transaction),
         allocations.map((allocation) => ({
+          id: allocation.id,
           category_id: allocation.categoryId!,
           amount: sign * (Math.round(Number(allocation.amount) * 100) / 100),
           description: allocation.description.trim() || undefined,
@@ -141,7 +145,7 @@ export function SplitTransactionDialog({
 
     setIsSaving(true);
     try {
-      await unsplitTransaction(transaction.id);
+      await unsplitTransaction(observedVersion(transaction));
       toast.success("Transaction split removed");
       setOpen(false);
       onSaved();

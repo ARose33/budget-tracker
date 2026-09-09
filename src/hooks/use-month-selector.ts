@@ -10,8 +10,10 @@ export function useMonthSelector() {
   const pathname = usePathname();
 
   const now = new Date();
-  const year = Number(searchParams.get("year")) || now.getFullYear();
-  const month = Number(searchParams.get("month")) || now.getMonth() + 1;
+  const requestedYear = Number(searchParams.get("year"));
+  const requestedMonth = Number(searchParams.get("month"));
+  const year = Number.isInteger(requestedYear) && requestedYear >= 1900 && requestedYear <= 9998 ? requestedYear : now.getFullYear();
+  const month = Number.isInteger(requestedMonth) && requestedMonth >= 1 && requestedMonth <= 12 ? requestedMonth : now.getMonth() + 1;
 
   const currentDate = useMemo(
     () => new Date(year, month - 1, 1),
@@ -20,6 +22,7 @@ export function useMonthSelector() {
 
   const setMonth = useCallback(
     (y: number, m: number) => {
+      if (y < 1900 || y > 9998 || m < 1 || m > 12) return;
       const params = new URLSearchParams(searchParams.toString());
       params.set("year", String(y));
       params.set("month", String(m));

@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import type { Database } from "./types";
+import type { Database } from "./v2-types";
 
 const protectedRoutes = [
   "/accounts",

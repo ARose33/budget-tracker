@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { saveError } from "@/lib/finance/cache";
 import { getCashFlow } from "@/lib/queries/analysis";
 import {
   ComposedChart,
@@ -37,7 +39,7 @@ function formatCurrency(amount: number) {
 export default function CashFlowPage() {
   const [months, setMonths] = useState("12");
 
-  const { data: raw = [], isLoading } = useQuery({
+  const { data: raw = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ["cash-flow", months],
     queryFn: () => getCashFlow(Number(months)),
   });
@@ -59,9 +61,11 @@ export default function CashFlowPage() {
       : 0;
   const savingsRate = avgIncome > 0 ? ((avgIncome - avgExpenses) / avgIncome) * 100 : 0;
 
+  if (isError) return <div role="alert" className="rounded border p-6">Analysis could not be loaded. {saveError(error)} <Button variant="outline" onClick={() => refetch()}>Retry</Button></div>;
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+      <p className="text-xs text-muted-foreground">All accounts · USD · Posted category activity with refunds netted. Transfers and uncategorized transactions are excluded. The current month is partial.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl font-bold">Cash Flow</h2>
         <Select value={months} onValueChange={(v) => v && setMonths(v)}>
           <SelectTrigger className="w-[150px]">
@@ -75,7 +79,7 @@ export default function CashFlowPage() {
         </Select>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Avg Monthly Income</p>

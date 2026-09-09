@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { useState } from "react";
 
 const navSections: {
@@ -65,7 +65,7 @@ function NavLinks({ onClick }: { onClick?: () => void }) {
         </div>
         <div>
           <h1 className="text-base font-semibold tracking-tight text-sidebar-foreground leading-tight">
-            Budget
+            StackMint
           </h1>
           <p className="text-[11px] text-sidebar-foreground/60 leading-tight">
             Personal Finance
@@ -150,10 +150,11 @@ export function MobileNav() {
   return (
     <div className="md:hidden flex items-center border-b bg-background/80 backdrop-blur px-4 py-3 sticky top-0 z-30">
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger className="inline-flex items-center justify-center rounded-md h-9 w-9 hover:bg-accent hover:text-accent-foreground transition-colors">
+        <SheetTrigger aria-label="Open navigation" className="inline-flex items-center justify-center rounded-md h-9 w-9 hover:bg-accent hover:text-accent-foreground transition-colors">
           <Menu className="h-5 w-5" />
         </SheetTrigger>
         <SheetContent side="left" className="w-64 p-0 bg-sidebar text-sidebar-foreground border-sidebar-border">
+          <SheetTitle className="sr-only">StackMint navigation</SheetTitle>
           <NavLinks onClick={() => setOpen(false)} />
         </SheetContent>
       </Sheet>
@@ -161,7 +162,7 @@ export function MobileNav() {
         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-teal-600 shadow-md shadow-emerald-500/30">
           <Wallet className="h-4 w-4 text-white" />
         </div>
-        <span className="font-semibold tracking-tight">Budget Tracker</span>
+        <span className="font-semibold tracking-tight">StackMint</span>
       </div>
     </div>
   );

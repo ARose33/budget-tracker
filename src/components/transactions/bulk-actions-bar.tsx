@@ -6,7 +6,7 @@ import { CategorySelect } from "./category-select";
 import { AccountSelect } from "./account-select";
 import {
   CheckCircle,
-  Trash2,
+  Archive,
   Tag,
   ShieldCheck,
   Building2,
@@ -25,7 +25,7 @@ interface BulkActionsBarProps {
   onFinalize: () => void;
   onSetDescription: (description: string) => void;
   onSetDate: (date: string) => void;
-  onDelete: () => void;
+  onArchive: () => void;
   onMarkNotDuplicate: () => void;
 }
 
@@ -36,7 +36,7 @@ export function BulkActionsBar({
   onFinalize,
   onSetDescription,
   onSetDate,
-  onDelete,
+  onArchive,
   onMarkNotDuplicate,
 }: BulkActionsBarProps) {
   const [editMode, setEditMode] = useState<EditMode>(null);
@@ -192,9 +192,9 @@ export function BulkActionsBar({
             <ShieldCheck className="h-3.5 w-3.5 mr-1" />
             Not a Duplicate
           </Button>
-          <Button variant="destructive" size="sm" onClick={onDelete}>
-            <Trash2 className="h-3.5 w-3.5 mr-1" />
-            Delete
+          <Button variant="destructive" size="sm" onClick={onArchive}>
+            <Archive className="h-3.5 w-3.5 mr-1" />
+            Archive
           </Button>
         </>
       )}

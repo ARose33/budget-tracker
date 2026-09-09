@@ -89,6 +89,7 @@ export function TransactionFiltersBar({
   );
 
   const hasFilters =
+    filters.history ||
     filters.search ||
     filters.categoryType ||
     filters.categoryGroup ||
@@ -176,6 +177,15 @@ export function TransactionFiltersBar({
 
   return (
     <div className="space-y-3">
+      <label className="flex flex-wrap items-center gap-2 text-sm">Activity and history
+        <select className="min-h-10 rounded-md border bg-card px-3" value={filters.history ?? "active"} onChange={event => {
+          const value = event.target.value;
+          onChange({ ...filters, history: value === "all" || value === "archived" || value === "removed" ? value : undefined });
+        }}>
+          <option value="active">Active transactions</option><option value="all">All transactions, including history</option><option value="archived">Archived by you</option><option value="removed">Removed at source</option>
+        </select>
+        <span className="text-xs text-muted-foreground">History remains searchable across all accounts.</span>
+      </label>
       <div className="flex flex-wrap items-center gap-2">
         <span className="mr-1 text-sm font-medium text-muted-foreground">
           Review status
@@ -184,7 +194,7 @@ export function TransactionFiltersBar({
           [
             [undefined, "All", allStatusCount],
             ["uncategorized", "Uncategorized", statusCounts?.uncategorized],
-            ["pending", "Pending", statusCounts?.pending],
+            ["pending", "To review", statusCounts?.pending],
             ["final", "Final", statusCounts?.final],
           ] as const
         ).map(([status, label, count]) => (

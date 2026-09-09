@@ -21,36 +21,36 @@ export function calculateBudgetTotals(groups: BudgetGroup[]): BudgetTotals {
   );
 
   const budgetedIncome = incomeGroups.reduce(
-    (sum, group) => sum + Number(group.total_budget),
+    (sum, group) => sum + Math.round(Number(group.total_budget) * 100),
     0
   );
   const budgetedExpenses = expenseGroups.reduce(
-    (sum, group) => sum + Number(group.total_budget),
+    (sum, group) => sum + Math.round(Number(group.total_budget) * 100),
     0
   );
   const expenseRollover = expenseGroups.reduce(
-    (sum, group) => sum + Number(group.total_rollover),
+    (sum, group) => sum + Math.round(Number(group.total_rollover) * 100),
     0
   );
   const actualIncome = incomeGroups.reduce(
-    (sum, group) => sum + Number(group.total_spent),
+    (sum, group) => sum + Math.round(Number(group.total_spent) * 100),
     0
   );
   const actualExpenses = expenseGroups.reduce(
-    (sum, group) => sum + Number(group.total_spent),
+    (sum, group) => sum + Math.round(Number(group.total_spent) * 100),
     0
   );
   const availableExpenses = budgetedExpenses + expenseRollover;
 
   return {
-    budgetedIncome,
-    budgetedExpenses,
-    plannedNet: budgetedIncome - budgetedExpenses,
-    expenseRollover,
-    availableExpenses,
-    actualIncome,
-    actualExpenses,
-    actualNet: actualIncome - actualExpenses,
-    remainingExpenses: availableExpenses - actualExpenses,
+    budgetedIncome: budgetedIncome / 100,
+    budgetedExpenses: budgetedExpenses / 100,
+    plannedNet: (budgetedIncome - budgetedExpenses) / 100,
+    expenseRollover: expenseRollover / 100,
+    availableExpenses: availableExpenses / 100,
+    actualIncome: actualIncome / 100,
+    actualExpenses: actualExpenses / 100,
+    actualNet: (actualIncome - actualExpenses) / 100,
+    remainingExpenses: (availableExpenses - actualExpenses) / 100,
   };
 }
