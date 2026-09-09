@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import {
   buildCategorizationPrompt,
+  applyCategorizationAssignments,
   selectRepresentativeExamples,
   validateCategorizationAssignments,
   type CategorizationAssignment,
@@ -12,7 +13,6 @@ import {
   type CategorizationExample,
 } from "@/lib/ai/transaction-categorization";
 import { createServerClient } from "@/lib/supabase/server";
-import type { Json } from "@/lib/supabase/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -50,12 +50,11 @@ async function applyAssignments(
 ) {
   if (assignments.length === 0) return 0;
 
-  const { data, error } = await supabase.rpc(
-    "apply_transaction_categorizations",
-    { p_items: assignments as unknown as Json }
-  );
-  if (error) throw error;
-  return data ?? 0;
+  return applyCategorizationAssignments(assignments, async (items) => {
+    const { data, error } = await supabase.rpc("apply_transaction_categorizations", { p_items: items });
+    if (error) throw error;
+    return data ?? 0;
+  });
 }
 
 export async function POST() {
@@ -181,6 +180,9 @@ export async function POST() {
 
     let modelAssignments: CategorizationAssignment[] = [];
     if (modelCandidates.length > 0) {
+      if (process.env.STACKMINT_ISOLATED === "true") {
+        return Response.json({ error: "External categorization is disabled in isolated verification" }, { status: 503 });
+      }
       const assignmentSchema = z.object({
         transactionId: z.string(),
         categoryId: z.string(),

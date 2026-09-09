@@ -36,4 +36,11 @@ npm run build and npm run lint remain the required production release checks aft
 
 ## Pending release gates
 
+### Milestone 1 safety checkpoint
+
+- Budget navigation now only reads. The retired ownership-claim endpoint returns 410 without creating a database client. Login return paths are constrained to the app; refresh cookies/cache headers survive redirects.
+- Plaid webhooks require a fresh ES256 signature and a matching raw-body hash. Query-string secrets are no longer generated. No provider registration was changed.
+- Categorization now serializes model field names into the actual PostgreSQL JSON contract; a database test proves it updates the intended uncategorized row once and rejects foreign categories/owners. Isolated mode blocks real Plaid and model calls.
+- Verification: 25 synthetic tests passed, including signed/forged/stale webhook cases and the actual categorization RPC. Lint and TypeScript passed. Browser auth/persistence and final integration orchestration remain for later milestones.
+
 Milestones 1–6 remain in progress. Existing-environment schema execution, a verified backup/restore drill, deployed-schema compatibility, real integration configuration, full browser verification, and release approval remain pending. Development approval does not authorize those existing-data/production operations. No production writes, migrations, integration calls, or deployment have occurred.

@@ -20,7 +20,6 @@ import {
   getBudgetWithRollover,
   getMonthlyUncategorizedSummary,
   groupBudgetItems,
-  ensureBudgetRows,
   renameBudgetGroup,
   updateBudgetLineItem,
   type BudgetCategoryType,
@@ -70,10 +69,7 @@ function BudgetContent() {
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["budget", year, month],
-    queryFn: async () => {
-      await ensureBudgetRows(year, month);
-      return getBudgetWithRollover(year, month);
-    },
+    queryFn: () => getBudgetWithRollover(year, month),
   });
 
   const {

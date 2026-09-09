@@ -24,6 +24,22 @@ export interface CategorizationAssignment {
   categoryId: string;
 }
 
+/** The RPC JSON record names are deliberately different from the model schema. */
+export function serializeCategorizationAssignments(assignments: CategorizationAssignment[]) {
+  return assignments.map(({ transactionId, categoryId }) => ({
+    transaction_id: transactionId,
+    category_id: categoryId,
+  }));
+}
+
+export async function applyCategorizationAssignments(
+  assignments: CategorizationAssignment[],
+  write: (items: ReturnType<typeof serializeCategorizationAssignments>) => Promise<number>
+) {
+  if (assignments.length === 0) return 0;
+  return write(serializeCategorizationAssignments(assignments));
+}
+
 export function selectRepresentativeExamples(
   examples: CategorizationExample[],
   perCategory = 3

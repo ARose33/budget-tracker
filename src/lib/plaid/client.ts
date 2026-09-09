@@ -156,6 +156,9 @@ function getSiteUrl() {
 }
 
 export function getPlaidClient() {
+  if (process.env.STACKMINT_ISOLATED === "true") {
+    throw new PlaidConfigError("External bank connections are disabled in isolated verification.");
+  }
   const environment = getPlaidEnvironment();
   const configuration = new Configuration({
     basePath: PlaidEnvironments[environment],
@@ -186,11 +189,7 @@ export function getPlaidServerConfigStatus() {
 }
 
 export function getPlaidWebhookUrl() {
-  const webhookSecret = process.env.PLAID_WEBHOOK_SECRET;
   const url = new URL("/api/plaid/webhook", getSiteUrl());
-  if (webhookSecret) {
-    url.searchParams.set("secret", webhookSecret);
-  }
   return url.toString();
 }
 

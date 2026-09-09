@@ -29,7 +29,7 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet, headers) {
           cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value);
           });
@@ -39,6 +39,7 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options);
           });
+          Object.entries(headers).forEach(([name, value]) => response.headers.set(name, value));
         },
       },
     }
@@ -49,15 +50,22 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
+  const redirect = (url: URL) => {
+    const result = NextResponse.redirect(url);
+    response.cookies.getAll().forEach((cookie) => result.cookies.set(cookie));
+    result.headers.set("Cache-Control", "private, no-store");
+    return result;
+  };
+  response.headers.set("Cache-Control", "private, no-store");
   if (!user && isProtectedPath(pathname)) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
-    return NextResponse.redirect(loginUrl);
+    return redirect(loginUrl);
   }
 
   if (user && pathname === "/login") {
-    return NextResponse.redirect(new URL("/budget", request.url));
+    return redirect(new URL("/budget", request.url));
   }
 
   return response;
