@@ -12,6 +12,13 @@
 
 # testing
 /coverage
+/.tools/
+/test-results/
+/playwright-report/
+/.isolated/
+/reports/
+*.dump
+*.backup
 
 # next.js
 /.next/

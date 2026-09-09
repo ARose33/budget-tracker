@@ -2,7 +2,15 @@
   "name": "budget-tracker",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=24.19.0 <25"
+  },
+  "packageManager": "npm@11.6.2",
   "scripts": {
+    "test": "node scripts/test.mjs",
+    "typecheck": "node scripts/isolated.mjs typecheck",
+    "build:isolated": "node scripts/isolated.mjs build",
+    "dev:isolated": "node scripts/isolated.mjs dev",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -46,6 +54,8 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/papaparse": "^5.5.2",
