@@ -1,9 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
 import { getCurrentUserId } from "@/lib/supabase/auth";
-import {
-  isSupportedAccountType,
-  type SupportedAccountType,
-} from "@/lib/accounts/account-types";
 
 export interface Account {
   id: string;
@@ -59,58 +55,4 @@ export async function getBankConnections(): Promise<BankConnectionStatus[]> {
 
   if (error) throw error;
   return data ?? [];
-}
-
-export async function toggleAccountHidden(accountId: string, hidden: boolean) {
-  const userId = await getCurrentUserId();
-  const { error } = await supabase
-    .from("accounts")
-    .update({ hidden })
-    .eq("id", accountId)
-    .eq("user_id", userId);
-  if (error) throw error;
-}
-
-export async function createAccount(input: {
-  name: string;
-  institution: string;
-  type: SupportedAccountType;
-  current_balance: number;
-}) {
-  const userId = await getCurrentUserId();
-  if (!isSupportedAccountType(input.type)) {
-    throw new Error("Unsupported account type");
-  }
-
-  const { data, error } = await supabase
-    .from("accounts")
-    .insert({
-      name: input.name,
-      institution: input.institution,
-      type: input.type,
-      current_balance: input.current_balance,
-      last_synced_at: new Date().toISOString(),
-      user_id: userId,
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
-}
-
-export async function updateAccountBalance(
-  accountId: string,
-  currentBalance: number
-) {
-  const userId = await getCurrentUserId();
-  const { error } = await supabase
-    .from("accounts")
-    .update({
-      current_balance: currentBalance,
-      bank_balance_managed: false,
-      last_synced_at: new Date().toISOString(),
-    })
-    .eq("id", accountId)
-    .eq("user_id", userId);
-  if (error) throw error;
 }

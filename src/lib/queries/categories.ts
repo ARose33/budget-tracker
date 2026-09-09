@@ -20,14 +20,3 @@ export async function getCategories(): Promise<Category[]> {
   if (error) throw error;
   return data ?? [];
 }
-
-export function groupCategories(categories: Category[]) {
-  const groups = new Map<string, Category[]>();
-  for (const cat of categories) {
-    if (!groups.has(cat.group_name)) {
-      groups.set(cat.group_name, []);
-    }
-    groups.get(cat.group_name)!.push(cat);
-  }
-  return groups;
-}

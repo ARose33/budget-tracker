@@ -159,11 +159,6 @@ export async function updateTransactionNotes(transactionId: string, notes: strin
   if (!response.ok) throw new Error(response.status === 409 ? "This note changed. Close and reopen it before saving." : "Could not save transaction note.");
   return noteSchema.parse(await response.json());
 }
-export async function findDuplicates() {
-  const { data, error } = await supabase.rpc("find_duplicate_transactions");
-  if (error) throw error;
-  return data ?? [];
-}
 export async function getCategorizationCounts(): Promise<CategorizationCounts> {
   const {data,error}=await supabase.rpc("stackmint_categorization_counts",{});
   if(error)throw error;
