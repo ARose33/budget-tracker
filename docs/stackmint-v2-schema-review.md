@@ -16,6 +16,14 @@ Adds one owner-isolated contribution view and pure JSON read functions for Budge
 
 Expense carry includes both surpluses and deficits across years, beginning at the first saved plan, including intervening months with no allocation. No read creates a plan. Existing source amounts are unchanged; displayed totals may differ from the defective absolute-value and year-limited calculations. USD remains the existing presentation currency; currency conversion is unsupported.
 
+## 03–05: category, transaction and note contracts
+
+03 adds an atomic category command. A new category and its one selected-month plan commit together; retrying its identity cannot duplicate it. Renaming checks observed names and preserves IDs, references and plan amounts. Group names apply globally and the UI states this explicitly.
+
+04 adds owner-filtered transaction search/pagination with split membership evaluated in SQL, avoiding a capped intermediate list of parent IDs. Active, all-history, archived and source-removed filters retain access to existing records.
+
+05 adds an append-only transaction_note_versions table with owner SELECT and service SELECT/INSERT grants, explicitly revoking inherited default privileges. The API checks the loaded revision and content hash, locks the owned transaction, preserves the read legacy text as version zero, then appends new text or an explicit empty version. Existing Storage objects remain untouched. Old clients that write directly to the legacy Storage location must be quiesced at rollout; two different stores cannot provide an atomic compare-and-swap against an unmodified v1 writer. Rollback clients must read the newest note version before falling back to legacy Storage.
+
 ## Verification and recovery gates
 
 Run `npm test` using synthetic fixtures. Current tests compare every original transaction field before/after the additive proposal, verify stable IDs and relationships through edits/unsplit, reject stale writes atomically and check two-user isolation. Independently calculated examples cover refunds, transfers, pending activity, carry gaps, leap days and more than 5,000 transactions with complete aggregate totals.

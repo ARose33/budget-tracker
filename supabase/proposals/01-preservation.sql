@@ -29,10 +29,11 @@ create table public.record_revisions (
   created_at timestamptz not null default now()
 );
 alter table public.record_revisions enable row level security;
+revoke all on public.record_revisions from public,anon,authenticated,service_role;
 create policy "Read own record history" on public.record_revisions for select to authenticated
 using (user_id = (select auth.uid()));
 grant select on public.record_revisions to authenticated;
-grant all on public.record_revisions to service_role;
+grant select,insert on public.record_revisions to service_role;
 create index record_revisions_entity_idx on public.record_revisions(user_id,entity_type,entity_id,created_at desc);
 
 -- Private SECURITY DEFINER trigger only appends history after a permitted row write.
