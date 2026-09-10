@@ -4,7 +4,9 @@
 param(
     [Parameter(Mandatory = $true)]
     [ValidatePattern('^[a-z]{20}$')]
-    [string]$ProjectRef
+    [string]$ProjectRef,
+
+    [switch]$PromptWindow
 )
 
 Set-StrictMode -Version Latest
@@ -48,7 +50,70 @@ try {
     Write-Host ('Project: ' + $ProjectRef)
     Write-Host 'This is not your Supabase website sign-in password or an API key.'
     Write-Host 'No password reset, database connection, backup, or production change is performed.'
-    $taskPassword = Read-Host 'Existing database password (input is hidden)' -AsSecureString
+    if ($PromptWindow) {
+        Add-Type -AssemblyName System.Windows.Forms
+        Add-Type -AssemblyName System.Drawing
+        [Windows.Forms.Application]::EnableVisualStyles()
+        $taskForm = New-Object Windows.Forms.Form
+        try {
+            $taskForm.Text = 'StackMint - secure backup access'
+            $taskForm.ClientSize = New-Object Drawing.Size(610, 255)
+            $taskForm.StartPosition = 'CenterScreen'
+            $taskForm.FormBorderStyle = 'FixedDialog'
+            $taskForm.MaximizeBox = $false
+            $taskForm.MinimizeBox = $false
+            $taskForm.TopMost = $true
+
+            $taskLabel = New-Object Windows.Forms.Label
+            $taskLabel.Location = New-Object Drawing.Point(18, 18)
+            $taskLabel.Size = New-Object Drawing.Size(574, 95)
+            $taskLabel.Text = "Enter the EXISTING Supabase database password.`r`nProject: $ProjectRef`r`n`r`nThis is separate from your website login. Saving is local and costs nothing."
+            $taskForm.Controls.Add($taskLabel)
+
+            $taskPasswordBox = New-Object Windows.Forms.TextBox
+            $taskPasswordBox.Location = New-Object Drawing.Point(18, 116)
+            $taskPasswordBox.Size = New-Object Drawing.Size(574, 25)
+            $taskPasswordBox.UseSystemPasswordChar = $true
+            $taskPasswordBox.AccessibleName = 'Existing Supabase database password'
+            $taskForm.Controls.Add($taskPasswordBox)
+
+            $taskHint = New-Object Windows.Forms.Label
+            $taskHint.Location = New-Object Drawing.Point(18, 153)
+            $taskHint.Size = New-Object Drawing.Size(574, 35)
+            $taskHint.Text = 'Saved with Windows encryption outside OneDrive and Git. If you do not know the password, choose Cancel. No password will be reset.'
+            $taskForm.Controls.Add($taskHint)
+
+            $taskSaveButton = New-Object Windows.Forms.Button
+            $taskSaveButton.Text = 'Save encrypted credential'
+            $taskSaveButton.Location = New-Object Drawing.Point(295, 204)
+            $taskSaveButton.Size = New-Object Drawing.Size(190, 32)
+            $taskSaveButton.DialogResult = [Windows.Forms.DialogResult]::OK
+            $taskSaveButton.Enabled = $false
+            $taskForm.Controls.Add($taskSaveButton)
+            $taskPasswordBox.Add_TextChanged({ $taskSaveButton.Enabled = $taskPasswordBox.TextLength -gt 0 })
+
+            $taskCancelButton = New-Object Windows.Forms.Button
+            $taskCancelButton.Text = 'Cancel'
+            $taskCancelButton.Location = New-Object Drawing.Point(497, 204)
+            $taskCancelButton.Size = New-Object Drawing.Size(95, 32)
+            $taskCancelButton.DialogResult = [Windows.Forms.DialogResult]::Cancel
+            $taskForm.Controls.Add($taskCancelButton)
+            $taskForm.AcceptButton = $taskSaveButton
+            $taskForm.CancelButton = $taskCancelButton
+            $taskForm.Add_Shown({ $taskPasswordBox.Focus() })
+
+            if ($taskForm.ShowDialog() -ne [Windows.Forms.DialogResult]::OK) {
+                Write-Host 'Cancelled; no credential saved.'
+                return
+            }
+            $taskPassword = ConvertTo-SecureString $taskPasswordBox.Text -AsPlainText -Force
+            $taskPasswordBox.Clear()
+        } finally {
+            $taskForm.Dispose()
+        }
+    } else {
+        $taskPassword = Read-Host 'Existing database password (input is hidden)' -AsSecureString
+    }
     if ($taskPassword.Length -eq 0) { throw 'No password was provided; no credential was saved.' }
 
     $taskCredential = New-Object Management.Automation.PSCredential('postgres', $taskPassword)
