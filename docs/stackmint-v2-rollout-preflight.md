@@ -2,6 +2,8 @@
 
 The user approved proceeding with backup/staging preparation and is ready for a maintenance pause and rollout. That authorization remains in effect. Recovery verification and the exact shared-database compatibility checks remain prerequisites; readiness for a pause does not establish that a backup is restorable.
 
+**User constraint: $0 additional cost.** Backup, staging, validation and rollout must use local or verified free resources within their free allowances. Do not purchase or activate paid plans, projects, branches, compute, add-ons, trials that convert to paid billing, or billable provider/model usage. General rollout approval does not authorize spending. The earlier Pro quote is informational only and that route is excluded. If recovery cannot be verified within this constraint, leave production unchanged and report the specific blocker; do not weaken recovery checks or infer permission to spend.
+
 No production pause, schema/data change, credential change, account disconnection, provider call, paid resource creation, merge or push was performed during this preflight.
 
 ## Verified remotely, read-only
