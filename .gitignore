@@ -13,6 +13,7 @@
 # testing
 /coverage
 /.tools/
+/supabase/.temp/
 /test-results/
 /playwright-report/
 /.isolated/

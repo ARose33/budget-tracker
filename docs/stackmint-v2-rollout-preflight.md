@@ -1,4 +1,22 @@
-# StackMint v2 rollout preflight — September 10, 2026
+# StackMint v2 rollout preflight — September 11, 2026
+
+## Current status: database-password blocker resolved
+
+The official Supabase CLI browser login succeeded using the user's existing Google-authenticated dashboard session. CLI 2.117.0 can obtain its own short-lived database login role; the existing database password is not required. Do not ask the user for that password again or reset it. A read-only connection query succeeded. The CLI-created administrative login role is a real access-management side effect; no financial records, application schema, existing credentials, or paid resources were changed.
+
+The free official PostgreSQL 17.11 Windows tools produced a native custom-format database archive with 99 TABLE DATA entries. The protected recovery directory is `%LOCALAPPDATA%/StackMint-Recovery/backup-20260911T204516Z-03199106`, outside OneDrive and Git. Seven encrypted artifacts cover the database (including Auth and archive schemas), role definitions without role passwords, Storage inventory and the one object's bytes, existing application environment, project root encryption key, and remote configuration. Every artifact was independently decrypted in memory and matched its recorded SHA-256 checksum. The private directory has inherited access disabled and one user-only access rule. No private contents were printed.
+
+The export initially stopped at remote configuration because a local CLI configuration was missing. Initializing that configuration locally and repeating the read-only export completed the bundle. Its status is `exported-not-restored`, with `RestoreVerified: false`. Encryption/checksum verification is not a restore drill, and this earlier checkpoint does not replace a fresh coordinated rollout checkpoint.
+
+Supabase quoted **$0/month** for a new project in the existing Rose Residences organization on September 11. The user has been asked to choose that organization for the temporary restore test; the answer is still pending. No project was created and no costs were confirmed or activated. Do not reuse the unrelated inactive project. The source project is unchanged, proposals 01–11 are not applied, and nothing has been pushed to `origin/main`.
+
+The earlier password-prompt notes below are historical and superseded. Resume with the authorized CLI connection, isolated restore/diff checks, and coordinated schema/application rollout—not another password request. General rollout authorization and the $0 constraint remain in force.
+
+### Recovery tooling
+
+`scripts/backup-stackmint.ps1` uses the official CLI's temporary connection, native `pg_dump`/`pg_dumpall`, read-only Storage downloads, and configuration/key exports. `scripts/recovery-common.ps1` captures process output without printing private values and encrypts each export with Windows user-bound DPAPI before removing its plaintext copy. The scripts do not run migrations or create paid resources. Temporary CLI metadata is excluded from Git. PowerShell parsing and whitespace checks passed; the actual export and all seven artifact checksum checks succeeded. Restoration and hosted compatibility remain unverified.
+
+## Earlier preflight findings
 
 The user approved proceeding with backup/staging preparation and is ready for a maintenance pause and rollout. That authorization remains in effect. Recovery verification and the exact shared-database compatibility checks remain prerequisites; readiness for a pause does not establish that a backup is restorable.
 
