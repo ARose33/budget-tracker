@@ -18,11 +18,13 @@ function Invoke-RecoveryTool {
         $null = $process.Start()
         $stdout = $process.StandardOutput.ReadToEndAsync()
         $stderr = $process.StandardError.ReadToEndAsync()
-        if ($InputText) { $process.StandardInput.Write($InputText) }
-        $process.StandardInput.Close()
+        $inputFailed = $false
+        try { if ($InputText) { $process.StandardInput.Write($InputText) } } catch { $inputFailed = $true }
+        try { $process.StandardInput.Close() } catch { $inputFailed = $true }
         $process.WaitForExit()
         # Callers must never print raw output/errors from commands handling private data.
-        return @{ ExitCode = $process.ExitCode; Output = $stdout.GetAwaiter().GetResult(); Error = $stderr.GetAwaiter().GetResult() }
+        $exitCode = if ($inputFailed -and $process.ExitCode -eq 0) { -1 } else { $process.ExitCode }
+        return @{ ExitCode = $exitCode; Output = $stdout.GetAwaiter().GetResult(); Error = $stderr.GetAwaiter().GetResult() }
     } finally { $process.Dispose() }
 }
 
@@ -61,8 +63,10 @@ function Get-RecoveryConnection {
     if ($connection.Count -ne 5) { throw 'Incomplete temporary connection configuration' }
     if ($connection.PGHOST -notmatch '(^db\.[a-z]{20}\.supabase\.co$|\.pooler\.supabase\.com$)' -or $connection.PGUSER -notmatch '^cli_login_postgres(\.[a-z]{20})?$' -or $connection.PGDATABASE -ne 'postgres') { throw 'Unexpected temporary connection destination' }
     if ($connection.PGUSER.Contains('.') -and -not $connection.PGUSER.EndsWith('.' + $ProjectRef)) { throw 'Connection project mismatch' }
+    if ($connection.PGHOST.StartsWith('db.') -and $connection.PGHOST -ne ('db.' + $ProjectRef + '.supabase.co')) { throw 'Connection project mismatch' }
     $connection.PGSSLMODE = 'require'
     $connection.PGCONNECT_TIMEOUT = '20'
     $connection.PGAPPNAME = 'StackMint recovery export'
+    $connection.PGCLIENTENCODING = 'UTF8'
     return $connection
 }

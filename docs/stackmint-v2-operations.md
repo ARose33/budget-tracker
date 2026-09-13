@@ -8,7 +8,7 @@ Read commands require --allow-existing-data-read. Write commands require --appro
 
 Operation names: statements:apply, statements:rollback, statements:seed-review, csv-import, merge-accounts, retire-connection. Existing manifest fingerprints and batch approval tokens remain additional checks. A fingerprint is not evidence that the user approved an operation.
 
-No such operation is approved or executed as part of v2 development. All v2 SQL files remain proposals.
+These separate statement/CSV/account-maintenance operations are outside the authorized v2 publication. The approved release schema is packaged in `20260913184110_stackmint_v2_release.sql`; recovery and rollout evidence is in `stackmint-v2-rollout-preflight.md`.
 
 ## Statement import and recovery
 

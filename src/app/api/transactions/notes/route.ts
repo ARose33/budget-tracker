@@ -112,11 +112,11 @@ export async function PUT(request: Request) {
       return json(
         {
           error:
-            error.code === "40001"
+            error.code === "PT409" || error.code === "40001"
               ? "This note changed. Reload before saving."
               : "The note could not be saved.",
         },
-        error.code === "40001" ? 409 : 503,
+        error.code === "PT409" || error.code === "40001" ? 409 : 503,
       );
     return json({ content: value.notes, version, hash: hash(value.notes) });
   } catch {

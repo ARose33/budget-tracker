@@ -2,6 +2,7 @@ import { createServerClient as createSupabaseServerClient } from "@supabase/ssr"
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import type { Database } from "./v2-types";
+import { releaseHeaders } from "./release-headers";
 
 export async function createServerClient() {
   const cookieStore = await cookies();
@@ -10,6 +11,7 @@ export async function createServerClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      global: { headers: releaseHeaders },
       cookies: {
         getAll() {
           return cookieStore.getAll();
@@ -39,5 +41,6 @@ export function createServiceRoleClient() {
   return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     serviceRoleKey,
+    { global: { headers: releaseHeaders } },
   );
 }

@@ -2,7 +2,7 @@
 
 Prepared September 9, 2026 on `codex/stackmint-v2`. Application and safety fixes: `48b9783`. Original baseline: `7097b80b518a52f935f1327b8976de83556716e6`.
 
-This is a working local release candidate with synthetic-data validation. It is **not deployed or approved for production**. The 11 SQL files remain proposals outside migration history. No existing records, real credentials, provider registrations, database permissions or production settings were changed.
+The user subsequently approved production rollout with no additional cost. The current recovery, hosted validation, migration and publication evidence is recorded in [the rollout record](stackmint-v2-rollout-preflight.md). That record supersedes the original development-only release gates below. The 12 reviewed schema steps are packaged in `20260913184110_stackmint_v2_release.sql`; the original 13 migrations remain unchanged.
 
 ## What changed
 
@@ -21,7 +21,7 @@ All commands ran inside the isolated v2 worktree. The final checks ran after the
 
 | Command / check | Actual result |
 | --- | --- |
-| `node scripts/test.mjs` | 58 passed; 0 failed, skipped or cancelled |
+| `node scripts/test.mjs` | 60 passed; 0 failed, skipped or cancelled; rerun September 13 |
 | `node scripts/isolated.mjs lint` | Exit 0 |
 | `node scripts/isolated.mjs typecheck` | Exit 0 |
 | `node scripts/isolated.mjs build` | Exit 0; Next 16.3.3 compiled and generated 29 routes |
@@ -54,9 +54,9 @@ npm run dev:isolated
 
 Open http://127.0.0.1:3000. Fixture login: `preview@stackmint.test` / `Synthetic-preview-2026!`. The second fixture is `second@stackmint.test` with the same synthetic password. These are public test fixtures, not real credentials. The API binds only to loopback and loses its generated records on process restart; browser reloads preserve changes while it is running. Real integrations are disabled. Never use this API as a hosted backend.
 
-## Remaining rollout gates
+## Original rollout gates (superseded by the rollout record)
 
-Development approval does not authorize these operations:
+These gates were recorded during development. Later explicit rollout authorization and actual recovery evidence are documented in the rollout record; do not request the same approval or database password again.
 
 1. Approve an exact existing-environment schema/caller plan for proposals 01–11, including grants and old-client quiescence. Review shared-schema consumers, host Node support, provider request duration, PostgREST behavior and metadata selector completeness against the configured REST row limit.
 2. Capture an encrypted database/Auth/Storage recovery point and prove its restoration in a separately identified environment. Compare identities, relationships, important fields, note/file bytes and account/month/category totals using frozen inputs. No actual backup or restoration has been performed.
